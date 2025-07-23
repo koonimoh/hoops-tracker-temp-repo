@@ -121,10 +121,57 @@ class ThreadPoolManager:
         self.task_results = ThreadSafeDict()
         self._shutdown = False
     
-    def submit_task(self, task_id: str, func: Callable, *args, **kwargs) -> Future:
+def submit_task(self, task_id: str, func: Callable, *args, **kwargs) -> Future:
         """Submit a task to the thread pool."""
-        if self._shutdown        except Exception as e:
-            logger.error(f"Error calculating shooting percentages: {e}")
+        if self._shutdown:
+            raise RuntimeError("ThreadPoolManager is shut down")
+        
+        def task_wrapper():
+            start_time = time.time()
+            self.active_tasks.increment()
+            thread_id = threading.get_ident()
+            
+            try:
+                result = func(*args, **kwargs)
+                duration = time.time() - start_time
+                
+                task_result = TaskResult(
+                    task_id=task_id,
+                    success=True,
+                    result=result,
+                    duration=duration,
+                    thread_id=thread_id
+                )
+                
+                self.task_results.set(task_id, task_result)
+                self.completed_tasks.increment()
+                logger.info(f"Task {task_id} completed successfully in {duration:.2f}s")
+                
+                return task_result
+                
+            except Exception as e:
+                duration = time.time() - start_time
+                error_msg = str(e)
+                
+                task_result = TaskResult(
+                    task_id=task_id,
+                    success=False,
+                    error=error_msg,
+                    duration=duration,
+                    thread_id=thread_id
+                )
+                
+                self.task_results.set(task_id, task_result)
+                self.failed_tasks.increment()
+                logger.error(f"Task {task_id} failed after {duration:.2f}s: {error_msg}")
+                
+                return task_result
+                
+            finally:
+                self.active_tasks.decrement()
+        
+        future = self.executor.submit(task_wrapper)
+        return future
     
     def _calculate_per36_stats(self, aggregated: Dict, stats_by_key: Dict):
         """Calculate per-36 minute statistics."""

@@ -53,25 +53,33 @@ celery_app.conf.update(
 )
 
 # Periodic tasks schedule
+# Periodic tasks schedule
 celery_app.conf.beat_schedule = {
     # Fetch NBA stats every hour during season
     'fetch-nba-stats': {
         'task': 'app.tasks.fetch_data.fetch_stats_task',
-        'schedule': crontab(minute=0            logger.info(f"Successfully loaded {total_loaded} players")
-            
-            return {
-                'success': len(errors) == 0,
-                'loaded': total_loaded,
-                'errors': errors
-            }
-            
-        except Exception as e:
-            logger.error(f"Failed to load players: {e}")
-            return {
-                'success': False,
-                'loaded': 0,
-                'errors': [str(e)]
-            }
+        'schedule': crontab(minute=0),  # Every hour
+        'args': (True,)  # Incremental update
+    },
+    
+    # Daily ETL at 3 AM
+    'daily-etl': {
+        'task': 'app.tasks.fetch_data.daily_etl_task',
+        'schedule': crontab(hour=3, minute=0),
+    },
+    
+    # Cache warmup every 4 hours
+    'warm-cache': {
+        'task': 'app.tasks.cache_warmup.warm_cache_task',
+        'schedule': crontab(minute=0, hour='*/4'),
+    },
+    
+    # Evaluate bets daily at 10 PM
+    'evaluate-bets': {
+        'task': 'app.tasks.fetch_data.evaluate_bets_task', 
+        'schedule': crontab(hour=22, minute=0),
+    },
+}
     
     def load_teams(self, teams: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Load teams into database with batch processing."""

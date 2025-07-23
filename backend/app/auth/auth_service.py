@@ -48,86 +48,7 @@ class AuthService:
             }
             
         except Exception as e:
-            logger.error(f"Error getting role permissions: {e}")
-            return []
-    
-    def create_role(self, name: str, description: str, permissions: List[str]) -> bool:
-        """Create a new role with permissions."""
-        try:
-            # Create the role
-            role_result = supabase.table('user_roles').insert({
-                'name': name,
-                'description': description,
-                'permissions': {},  # We'll use junction table instead
-                'is_active': True
-            }).execute()
-            
-            if role_result.error:
-                logger.error(f"Failed to create role: {role_result.error}")
-                return False
-            
-            role_id = role_result.data[0]['id']
-            
-            # Add permissions to the role
-            for perm_name in permissions:
-                perm_result = supabase.table('permissions').select('id').eq(
-                    'name', perm_name
-                ).single().execute()
-                
-                if perm_result.data:
-                    supabase.table('role_permissions').insert({
-                        'role_id': role_id,
-                        'permission_id': perm_result.data['id']
-                    }).execute()
-            
-            # Clear cache
-            cache.delete(f"role_permissions:{name}")
-            
-            logger.info(f"Role created: {name}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error creating role: {e}")
-            return False
-    
-    def assign_permission_to_role(self, role_name: str, permission_name: str) -> bool:
-        """Assign a permission to a role."""
-        try:
-            # Get role ID
-            role_result = supabase.table('user_roles').select('id').eq(
-                'name', role_name
-            ).single().execute()
-            
-            if role_result.error or not role_result.data:
-                return False
-            
-            # Get permission ID
-            perm_result = supabase.table('permissions').select('id').eq(
-                'name', permission_name
-            ).single().execute()
-            
-            if perm_result.error or not perm_result.data:
-                return False
-            
-            # Create role-permission association
-            result = supabase.table('role_permissions').insert({
-                'role_id': role_result.data['id'],
-                'permission_id': perm_result.data['id']
-            }).execute()
-            
-            if result.error:
-                return False
-            
-            # Clear cache
-            cache.delete(f"role_permissions:{role_name}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error assigning permission: {e}")
-            return False
-
-# Global RBAC instance
-rbac = RoleBasedAccessControl()Registration error: {e}")
+            logger.error(f"Registration error: {e}")
             return {
                 'success': False,
                 'error': 'Registration failed. Please try again.'
@@ -268,8 +189,12 @@ rbac = RoleBasedAccessControl()Registration error: {e}")
                 return None
             
             profile = result.data
-            profile['role_name'] = profile['user_roles']['name']
-            profile['role_permissions'] = profile['user_roles']['permissions']
+            if profile.get('user_roles'):
+                profile['role_name'] = profile['user_roles']['name']
+                profile['role_permissions'] = profile['user_roles']['permissions']
+            else:
+                profile['role_name'] = 'user'
+                profile['role_permissions'] = {}
             
             return profile
             
@@ -280,20 +205,35 @@ rbac = RoleBasedAccessControl()Registration error: {e}")
     def get_user_permissions(self, user_id: str) -> List[str]:
         """Get list of user permissions."""
         try:
-            # Use the SQL function we created
+            # Try to use the SQL function if it exists
             result = supabase.rpc('get_user_permissions', {
                 'user_uuid': user_id
             }).execute()
             
             if result.error:
-                logger.error(f"Error getting permissions: {result.error}")
+                logger.warning(f"SQL function not available, using fallback: {result.error}")
+                # Fallback to basic role-based permissions
+                user_profile = self.get_user_profile(user_id)
+                if user_profile and user_profile.get('role_name'):
+                    return self._get_default_permissions(user_profile['role_name'])
                 return []
             
             return [perm['permission_name'] for perm in result.data or []]
             
         except Exception as e:
             logger.error(f"Error getting user permissions: {e}")
-            return []
+            # Fallback to basic permissions
+            return ['players.read', 'bets.read']
+    
+    def _get_default_permissions(self, role_name: str) -> List[str]:
+        """Get default permissions for a role (fallback)."""
+        role_permissions = {
+            'admin': ['all'],
+            'premium': ['bets.create', 'bets.read', 'bets.update', 'watchlist.create', 'watchlist.read', 'players.read'],
+            'user': ['bets.read', 'watchlist.read', 'players.read'],
+            'guest': ['players.read']
+        }
+        return role_permissions.get(role_name, ['players.read'])
     
     def has_permission(self, user_id: str, permission: str) -> bool:
         """Check if user has specific permission."""
@@ -301,18 +241,96 @@ rbac = RoleBasedAccessControl()Registration error: {e}")
             # Use cached permissions if available
             current_user = self.get_current_user()
             if current_user and current_user.get('user_id') == user_id:
-                return permission in current_user.get('permissions', [])
+                permissions = current_user.get('permissions', [])
+                # Check for admin permission
+                if 'all' in permissions:
+                    return True
+                return permission in permissions
             
-            # Use SQL function for direct check
-            result = supabase.rpc('user_has_permission', {
-                'user_uuid': user_id,
-                'permission_name': permission
-            }).execute()
-            
-            return result.data if result.data is not None else False
+            # Fallback check
+            permissions = self.get_user_permissions(user_id)
+            return 'all' in permissions or permission in permissions
             
         except Exception as e:
             logger.error(f"Error checking permission: {e}")
+            return False
+    
+    def create_role(self, name: str, description: str, permissions: List[str]) -> bool:
+        """Create a new role with permissions."""
+        try:
+            # Create the role
+            role_result = supabase.table('user_roles').insert({
+                'name': name,
+                'description': description,
+                'permissions': {},  # We'll use junction table instead
+                'is_active': True
+            }).execute()
+            
+            if role_result.error:
+                logger.error(f"Failed to create role: {role_result.error}")
+                return False
+            
+            role_id = role_result.data[0]['id']
+            
+            # Add permissions to the role (if permissions table exists)
+            for perm_name in permissions:
+                try:
+                    perm_result = supabase.table('permissions').select('id').eq(
+                        'name', perm_name
+                    ).single().execute()
+                    
+                    if perm_result.data:
+                        supabase.table('role_permissions').insert({
+                            'role_id': role_id,
+                            'permission_id': perm_result.data['id']
+                        }).execute()
+                except Exception as perm_error:
+                    logger.warning(f"Could not assign permission {perm_name}: {perm_error}")
+            
+            # Clear cache
+            cache.delete(f"role_permissions:{name}")
+            
+            logger.info(f"Role created: {name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error creating role: {e}")
+            return False
+    
+    def assign_permission_to_role(self, role_name: str, permission_name: str) -> bool:
+        """Assign a permission to a role."""
+        try:
+            # Get role ID
+            role_result = supabase.table('user_roles').select('id').eq(
+                'name', role_name
+            ).single().execute()
+            
+            if role_result.error or not role_result.data:
+                return False
+            
+            # Get permission ID
+            perm_result = supabase.table('permissions').select('id').eq(
+                'name', permission_name
+            ).single().execute()
+            
+            if perm_result.error or not perm_result.data:
+                return False
+            
+            # Create role-permission association
+            result = supabase.table('role_permissions').insert({
+                'role_id': role_result.data['id'],
+                'permission_id': perm_result.data['id']
+            }).execute()
+            
+            if result.error:
+                return False
+            
+            # Clear cache
+            cache.delete(f"role_permissions:{role_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error assigning permission: {e}")
             return False
     
     def update_user_role(self, user_id: str, role_name: str, updated_by: str) -> bool:
@@ -343,14 +361,17 @@ rbac = RoleBasedAccessControl()Registration error: {e}")
             cache_key = f"user_session:{user_id}"
             cache.delete(cache_key)
             
-            # Log the action
-            supabase.rpc('log_user_action', {
-                'user_uuid': updated_by,
-                'action_name': 'update_user_role',
-                'resource_name': 'user_profiles',
-                'resource_uuid': user_id,
-                'new_data': {'role_name': role_name}
-            }).execute()
+            # Try to log the action (optional)
+            try:
+                supabase.rpc('log_user_action', {
+                    'user_uuid': updated_by,
+                    'action_name': 'update_user_role',
+                    'resource_name': 'user_profiles',
+                    'resource_uuid': user_id,
+                    'new_data': {'role_name': role_name}
+                }).execute()
+            except Exception:
+                pass  # Logging is optional
             
             logger.info(f"User role updated: {user_id} -> {role_name}")
             return True
@@ -362,15 +383,23 @@ rbac = RoleBasedAccessControl()Registration error: {e}")
     def _update_login_tracking(self, user_id: str):
         """Update user login tracking."""
         try:
+            # Get current login count
+            profile_result = supabase.table('user_profiles').select('login_count').eq(
+                'user_id', user_id
+            ).single().execute()
+            
+            current_count = 0
+            if profile_result.data:
+                current_count = profile_result.data.get('login_count', 0)
+            
+            # Update login tracking
             supabase.table('user_profiles').update({
                 'last_login_at': datetime.utcnow().isoformat(),
-                'login_count': supabase.table('user_profiles').select('login_count').eq(
-                    'user_id', user_id
-                ).single().execute().data.get('login_count', 0) + 1
+                'login_count': current_count + 1
             }).eq('user_id', user_id).execute()
             
         except Exception as e:
-            logger.error(f"Error updating login tracking: {e}")
+            logger.warning(f"Error updating login tracking: {e}")
 
 # Global auth service instance
 auth_service = AuthService()

@@ -255,7 +255,7 @@ class ETLService:
             logger.error(f"Failed to transform player stats: {e}")
             return []
     
-    def load_players(self, players: List[Dict[str, Any]]) -> Dict[str, Any]:
+def load_players(self, players: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Load players into database with batch processing."""
         try:
             logger.info(f"Loading {len(players)} players into database")
@@ -291,4 +291,15 @@ class ETLService:
             logger.info(f"Successfully loaded {total_loaded} players")
             
             return {
-                'success': len(errors)
+                'success': len(errors) == 0,
+                'loaded': total_loaded,
+                'errors': errors
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to load players: {e}")
+            return {
+                'success': False,
+                'loaded': 0,
+                'errors': [str(e)]
+            })

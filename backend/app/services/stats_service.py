@@ -139,7 +139,7 @@ class StatsService:
             logger.error(f"Error aggregating player stats: {e}")
             return {}
     
-    def _calculate_shooting_percentages(self, aggregated: Dict, stats_by_key: Dict):
+def _calculate_shooting_percentages(self, aggregated: Dict, stats_by_key: Dict):
         """Calculate shooting percentages."""
         try:
             shooting_stats = {
@@ -159,4 +159,5 @@ class StatsService:
                     else:
                         aggregated['shooting_percentages'][pct_key] = 0.0
             
-        except Exception as e# Remaining Skeleton Files for Hoops Tracker
+        except Exception as e:
+            logger.error(f"Error calculating shooting percentages: {e}")

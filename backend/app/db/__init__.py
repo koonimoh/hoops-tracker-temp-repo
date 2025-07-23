@@ -1,6 +1,4 @@
-```python
 from .supabase import supabase, supabase_client
-from .schemas import *
 from .search import search_service
 
 __all__ = [
@@ -8,4 +6,3 @@ __all__ = [
     'supabase_client', 
     'search_service',
 ]
-```

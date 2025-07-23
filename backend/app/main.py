@@ -1,11 +1,9 @@
-# Complete the main Flask application file
-# backend/app/main.py
 """
 Main Flask application factory and configuration.
 """
 
-from flask import Flask, g, session
-from flask_session import Session
+from flask import Flask, g, session, render_template
+from datetime import datetime
 import os
 from app.core.config import settings
 from app.core.logging import logger
