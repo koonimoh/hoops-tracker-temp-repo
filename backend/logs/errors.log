@@ -1,0 +1,20 @@
+2025-07-23 08:13:40 - hoops_tracker - ERROR - Cache get error for key f638072285bce9a4e491a8e0b3e1a5c6: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:13:41 - hoops_tracker - ERROR - Error getting league leaders: 'SingleAPIResponse[TypeVar]' object has no attribute 'error'
+2025-07-23 08:13:41 - hoops_tracker - ERROR - Cache set error for key f638072285bce9a4e491a8e0b3e1a5c6: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:13:41 - hoops_tracker - ERROR - Cache get error for key a4b936e778266934db7291cb89c6eb82: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:13:41 - hoops_tracker - ERROR - Error getting league leaders: 'SingleAPIResponse[TypeVar]' object has no attribute 'error'
+2025-07-23 08:13:41 - hoops_tracker - ERROR - Cache set error for key a4b936e778266934db7291cb89c6eb82: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:13:41 - hoops_tracker - ERROR - Error loading homepage data: index.html
+2025-07-23 08:14:37 - hoops_tracker - ERROR - Cache get error for key f638072285bce9a4e491a8e0b3e1a5c6: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:14:38 - hoops_tracker - ERROR - Error getting league leaders: 'SingleAPIResponse[TypeVar]' object has no attribute 'error'
+2025-07-23 08:14:38 - hoops_tracker - ERROR - Cache set error for key f638072285bce9a4e491a8e0b3e1a5c6: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:14:38 - hoops_tracker - ERROR - Cache get error for key a4b936e778266934db7291cb89c6eb82: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:14:38 - hoops_tracker - ERROR - Error getting league leaders: 'SingleAPIResponse[TypeVar]' object has no attribute 'error'
+2025-07-23 08:14:38 - hoops_tracker - ERROR - Cache set error for key a4b936e778266934db7291cb89c6eb82: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:14:38 - hoops_tracker - ERROR - Error loading homepage data: index.html
+2025-07-23 08:23:06 - hoops_tracker - ERROR - Cache get error for key faa4339bebaf6de33044aefd9466cd2e: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:23:06 - hoops_tracker - ERROR - Cache set error for key faa4339bebaf6de33044aefd9466cd2e: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:23:06 - hoops_tracker - ERROR - Cache get error for key 65269dbab8b8e3ddabfa943a58502369: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:23:06 - hoops_tracker - ERROR - Cache set error for key 65269dbab8b8e3ddabfa943a58502369: Error 111 connecting to localhost:6379. Connection refused.
+2025-07-23 08:23:50 - hoops_tracker - ERROR - Registration error: Password should contain at least one character of each: abcdefghijklmnopqrstuvwxyz, ABCDEFGHIJKLMNOPQRSTUVWXYZ, 0123456789, !@#$%^&*()_+-=[]{};':"|<>?,./`~.
+2025-07-23 08:29:21 - hoops_tracker - ERROR - Login error: Invalid login credentials

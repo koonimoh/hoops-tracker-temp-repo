@@ -52,6 +52,7 @@ class CacheManager:
             logger.error(f"Cache clear pattern error for {pattern}: {e}")
             return 0
 
+# Create cache manager instance
 cache = CacheManager()
 
 def cached(timeout: Optional[int] = None, key_func: Optional[Callable] = None):

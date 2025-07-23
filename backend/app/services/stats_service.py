@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from app.db.supabase import supabase
 from app.core.logging import logger
-from app.core.cache import cached, cache
+from app.core.cache import cached  # Import the decorator function
 from app.utils.decorators import performance_monitor
 import numpy as np
 
@@ -34,11 +34,16 @@ class StatsService:
                 'min_games': min_games
             }).execute()
             
-            if result.error:
+            # Handle different response structures
+            if hasattr(result, 'error') and result.error:
                 logger.error(f"Failed to get league leaders: {result.error}")
                 return []
-            
-            return result.data or []
+            elif hasattr(result, 'data'):
+                return result.data or []
+            else:
+                # Fallback for different response structure
+                logger.warning("Unexpected Supabase response structure")
+                return []
             
         except Exception as e:
             logger.error(f"Error getting league leaders: {e}")
@@ -55,7 +60,11 @@ class StatsService:
             # Get season ID
             season_result = supabase.table('seasons').select('id').eq('year', season_year).eq('is_current', True).single().execute()
             
-            if season_result.error or not season_result.data:
+            # Handle different response structures
+            if hasattr(season_result, 'error') and season_result.error:
+                logger.error(f"Failed to get season: {season_result.error}")
+                return {}
+            elif hasattr(season_result, 'data') and not season_result.data:
                 logger.error("Current season not found")
                 return {}
             
@@ -66,11 +75,12 @@ class StatsService:
                 'stat_key, stat_value, game_date, minutes_played'
             ).eq('player_id', player_id).eq('season_id', season_id).execute()
             
-            if stats_result.error:
+            # Handle different response structures
+            if hasattr(stats_result, 'error') and stats_result.error:
                 logger.error(f"Failed to get player stats: {stats_result.error}")
                 return {}
             
-            raw_stats = stats_result.data or []
+            raw_stats = stats_result.data or [] if hasattr(stats_result, 'data') else []
             
             if not raw_stats:
                 return {}
@@ -139,7 +149,7 @@ class StatsService:
             logger.error(f"Error aggregating player stats: {e}")
             return {}
     
-def _calculate_shooting_percentages(self, aggregated: Dict, stats_by_key: Dict):
+    def _calculate_shooting_percentages(self, aggregated: Dict, stats_by_key: Dict):
         """Calculate shooting percentages."""
         try:
             shooting_stats = {
@@ -161,3 +171,51 @@ def _calculate_shooting_percentages(self, aggregated: Dict, stats_by_key: Dict):
             
         except Exception as e:
             logger.error(f"Error calculating shooting percentages: {e}")
+    
+    def _calculate_per36_stats(self, aggregated: Dict, stats_by_key: Dict):
+        """Calculate per-36 minute statistics."""
+        try:
+            total_minutes = sum(stats_by_key['min'])
+            
+            if total_minutes == 0:
+                return
+            
+            per36_stats = ['pts', 'reb', 'ast', 'stl', 'blk', 'tov']
+            
+            for stat_key in per36_stats:
+                if stat_key in stats_by_key:
+                    total_stat = sum(stats_by_key[stat_key])
+                    per36_value = (total_stat / total_minutes) * 36
+                    aggregated['per_36'][stat_key] = round(per36_value, 1)
+            
+        except Exception as e:
+            logger.error(f"Error calculating per-36 stats: {e}")
+    
+    def _calculate_advanced_stats(self, aggregated: Dict, stats_by_key: Dict):
+        """Calculate advanced statistics."""
+        try:
+            # Player Efficiency Rating (simplified)
+            required_stats = ['pts', 'reb', 'ast', 'stl', 'blk', 'tov', 'pf', 'min']
+            if all(key in stats_by_key for key in required_stats):
+                total_minutes = sum(stats_by_key['min'])
+                
+                if total_minutes > 0:
+                    per = (
+                        sum(stats_by_key['pts']) +
+                        sum(stats_by_key['reb']) +
+                        sum(stats_by_key['ast']) +
+                        sum(stats_by_key['stl']) +
+                        sum(stats_by_key['blk']) -
+                        sum(stats_by_key['tov']) -
+                        sum(stats_by_key['pf'])
+                    ) / total_minutes * 36
+                    
+                    aggregated['advanced'] = {
+                        'per': round(max(0, per), 1)
+                    }
+            
+        except Exception as e:
+            logger.error(f"Error calculating advanced stats: {e}")
+
+# Global instance
+stats_service = StatsService()

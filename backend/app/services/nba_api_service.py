@@ -10,7 +10,7 @@ from nba_api.stats.static import players, teams
 from nba_api.live.nba.endpoints import scoreboard
 from app.core.config import settings
 from app.core.logging import logger
-from app.core.cache import cache as cached
+from app.core.cache import cached  # Import the decorator function, not the manager
 from app.utils.decorators import rate_limit, retry_on_failure
 
 class NBAApiService:
