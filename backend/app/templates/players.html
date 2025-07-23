@@ -1,0 +1,173 @@
+<!-- backend/app/templates/players.html -->
+{% extends "layout.html" %}
+
+{% block title %}Players - Hoops Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-4">NBA Players</h1>
+        
+        <!-- Search and Filters -->
+        <div class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1">
+                <form method="GET" class="relative">
+                    <input type="text" 
+                           name="search" 
+                           value="{{ search_query }}"
+                           placeholder="Search players..." 
+                           class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nba-blue focus:border-transparent">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <button type="submit" class="absolute inset-y-0 right-0 px-4 py-2 bg-nba-blue text-white rounded-r-lg hover:bg-blue-700">
+                        Search
+                    </button>
+                </form>
+            </div>
+            
+            <div class="flex gap-2">
+                <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nba-blue">
+                    <option>All Positions</option>
+                    <option>PG</option>
+                    <option>SG</option>
+                    <option>SF</option>
+                    <option>PF</option>
+                    <option>C</option>
+                </select>
+                
+                <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nba-blue">
+                    <option>All Teams</option>
+                    <option>Lakers</option>
+                    <option>Warriors</option>
+                    <option>Celtics</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Players Grid -->
+    {% if players %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {% for player in players %}
+            <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
+                <div class="flex items-center mb-4">
+                    <div class="w-12 h-12 bg-nba-blue rounded-full flex items-center justify-center text-white font-bold">
+                        {{ player.name[0] if player.name else '?' }}
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="font-semibold text-lg">{{ player.name or 'Unknown Player' }}</h3>
+                        <p class="text-gray-600 text-sm">
+                            {{ player.teams.abbreviation if player.teams else 'FA' }} • {{ player.position or 'N/A' }}
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Player Stats Preview -->
+                <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+                    <div class="bg-gray-50 rounded p-2">
+                        <div class="text-lg font-bold text-nba-blue">{{ player.avg_points or 'N/A' }}</div>
+                        <div class="text-xs text-gray-600">PPG</div>
+                    </div>
+                    <div class="bg-gray-50 rounded p-2">
+                        <div class="text-lg font-bold text-green-600">{{ player.avg_rebounds or 'N/A' }}</div>
+                        <div class="text-xs text-gray-600">RPG</div>
+                    </div>
+                    <div class="bg-gray-50 rounded p-2">
+                        <div class="text-lg font-bold text-purple-600">{{ player.avg_assists or 'N/A' }}</div>
+                        <div class="text-xs text-gray-600">APG</div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex space-x-2">
+                    <a href="{{ url_for('main.player_detail', player_id=player.id) }}" 
+                       class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-center py-2 px-3 rounded text-sm font-medium transition-colors">
+                        View Stats
+                    </a>
+                    {% if current_user %}
+                    <button onclick="addToWatchlist('{{ player.id }}')" 
+                            class="bg-nba-blue hover:bg-blue-700 text-white py-2 px-3 rounded text-sm font-medium transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        <div class="mt-8 flex justify-center">
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                {% if page > 1 %}
+                <a href="?page={{ page - 1 }}{% if search_query %}&search={{ search_query }}{% endif %}" 
+                   class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    Previous
+                </a>
+                {% endif %}
+                
+                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                    Page {{ page }}
+                </span>
+                
+                <a href="?page={{ page + 1 }}{% if search_query %}&search={{ search_query }}{% endif %}" 
+                   class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    Next
+                </a>
+            </nav>
+        </div>
+    {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-12">
+            <div class="text-6xl mb-4">🏀</div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">
+                {% if search_query %}No players found{% else %}No players available{% endif %}
+            </h2>
+            <p class="text-gray-600 mb-6">
+                {% if search_query %}
+                    Try adjusting your search terms or filters.
+                {% else %}
+                    Player data is being updated. Please check back later.
+                {% endif %}
+            </p>
+            {% if search_query %}
+            <a href="{{ url_for('main.players') }}" class="btn-primary">Clear Search</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<script>
+async function addToWatchlist(playerId) {
+    try {
+        const response = await fetch('/api/watchlist', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                player_id: playerId,
+                priority: 3
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            HoopsTracker.showNotification('Player added to watchlist!', 'success');
+        } else {
+            HoopsTracker.showNotification(result.error || 'Failed to add to watchlist', 'error');
+        }
+    } catch (error) {
+        console.error('Error adding to watchlist:', error);
+        HoopsTracker.showNotification('Failed to add to watchlist', 'error');
+    }
+}
+</script>
+{% endblock %}
