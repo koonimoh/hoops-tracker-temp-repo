@@ -2,196 +2,187 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom component classes */
 @layer components {
-    .btn-primary {
-        @apply bg-nba-blue hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors duration-200;
-    }
-    
-    .btn-secondary {
-        @apply bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors duration-200;
-    }
-    
-    .btn-success {
-        @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors duration-200;
-    }
-    
-    .btn-danger {
-        @apply bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors duration-200;
-    }
-    
-    .card {
-        @apply bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200;
-    }
-    
-    .form-input {
-        @apply shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-nba-blue transition-colors duration-200;
-    }
-    
-    .form-select {
-        @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-nba-blue focus:border-nba-blue;
-    }
-    
-    .stat-card {
-        @apply bg-white rounded-lg shadow p-4 text-center;
-    }
-    
-    .stat-value {
-        @apply text-2xl font-bold text-nba-blue;
-    }
-    
-    .stat-label {
-        @apply text-sm text-gray-600 mt-1;
-    }
-    
-    .loading-spinner {
-        @apply animate-spin rounded-full border-2 border-gray-300 border-t-nba-blue;
-    }
-    
-    .search-result-item {
-        @apply p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150;
-    }
-    
-    .player-card {
-        @apply bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200 border border-gray-200;
-    }
-    
-    .team-logo {
-        @apply w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-gray-200;
-    }
-    
-    .priority-badge {
-        @apply px-2 py-1 rounded-full text-xs font-medium;
-    }
-    
-    .modal-backdrop {
-        @apply fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50;
-    }
-    
-    .modal-content {
-        @apply bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6;
-    }
+   .btn-primary {
+       @apply bg-nba-blue hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors duration-200;
+   }
+   
+   .btn-secondary {
+       @apply bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 transition-colors duration-200;
+   }
+   
+   .btn-success {
+       @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors duration-200;
+   }
+   
+   .btn-danger {
+       @apply bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors duration-200;
+   }
+   
+   .card {
+       @apply bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200;
+   }
+   
+   .form-input {
+       @apply shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-nba-blue focus:ring-opacity-50 focus:border-nba-blue transition-colors duration-200;
+   }
+   
+   .form-select {
+       @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-nba-blue focus:border-nba-blue;
+   }
+   
+   .stat-card {
+       @apply bg-white rounded-lg shadow p-4 text-center;
+   }
+   
+   .stat-value {
+       @apply text-2xl font-bold text-nba-blue;
+   }
+   
+   .stat-label {
+       @apply text-sm text-gray-600 mt-1;
+   }
+   
+   .loading-spinner {
+       @apply animate-spin rounded-full border-2 border-gray-300 border-t-nba-blue;
+   }
+   
+   .search-result-item {
+       @apply p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150;
+   }
+   
+   .player-card {
+       @apply bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200 border border-gray-200;
+   }
+   
+   .team-logo {
+       @apply w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-gray-200;
+   }
+   
+   .priority-badge {
+       @apply px-2 py-1 rounded-full text-xs font-medium;
+   }
+   
+   .modal-backdrop {
+       @apply fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50;
+   }
+   
+   .modal-content {
+       @apply bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6;
+   }
 }
 
-/* Custom utility classes */
 @layer utilities {
-    .text-nba-blue {
-        color: #1d428a;
-    }
-    
-    .bg-nba-blue {
-        background-color: #1d428a;
-    }
-    
-    .border-nba-blue {
-        border-color: #1d428a;
-    }
-    
-    .text-nba-red {
-        color: #c8102e;
-    }
-    
-    .bg-nba-red {
-        background-color: #c8102e;
-    }
-    
-    .gradient-nba {
-        background: linear-gradient(135deg, #1d428a 0%, #c8102e 100%);
-    }
-    
-    .shadow-nba {
-        box-shadow: 0 4px 14px 0 rgba(29, 66, 138, 0.2);
-    }
+   .text-nba-blue {
+       color: #1d428a;
+   }
+   
+   .bg-nba-blue {
+       background-color: #1d428a;
+   }
+   
+   .border-nba-blue {
+       border-color: #1d428a;
+   }
+   
+   .text-nba-red {
+       color: #c8102e;
+   }
+   
+   .bg-nba-red {
+       background-color: #c8102e;
+   }
+   
+   .gradient-nba {
+       background: linear-gradient(135deg, #1d428a 0%, #c8102e 100%);
+   }
+   
+   .shadow-nba {
+       box-shadow: 0 4px 14px 0 rgba(29, 66, 138, 0.2);
+   }
 }
 
-/* Animation utilities */
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+   from { opacity: 0; }
+   to { opacity: 1; }
 }
 
 @keyframes slideIn {
-    from { transform: translateY(-10px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+   from { transform: translateY(-10px); opacity: 0; }
+   to { transform: translateY(0); opacity: 1; }
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+   0%, 100% { opacity: 1; }
+   50% { opacity: 0.5; }
 }
 
 .animate-fadeIn {
-    animation: fadeIn 0.3s ease-out;
+   animation: fadeIn 0.3s ease-out;
 }
 
 .animate-slideIn {
-    animation: slideIn 0.3s ease-out;
+   animation: slideIn 0.3s ease-out;
 }
 
 .animate-pulse-slow {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Basketball court background pattern */
 .court-pattern {
-    background-image: 
-        radial-gradient(circle at 25% 25%, rgba(29, 66, 138, 0.1) 2px, transparent 2px),
-        radial-gradient(circle at 75% 75%, rgba(200, 16, 46, 0.1) 2px, transparent 2px);
-    background-size: 50px 50px;
+   background-image: 
+       radial-gradient(circle at 25% 25%, rgba(29, 66, 138, 0.1) 2px, transparent 2px),
+       radial-gradient(circle at 75% 75%, rgba(200, 16, 46, 0.1) 2px, transparent 2px);
+   background-size: 50px 50px;
 }
 
-/* Responsive design helpers */
 @media (max-width: 768px) {
-    .mobile-hidden {
-        display: none !important;
-    }
-    
-    .mobile-full {
-        width: 100% !important;
-    }
+   .mobile-hidden {
+       display: none !important;
+   }
+   
+   .mobile-full {
+       width: 100% !important;
+   }
 }
 
-/* Print styles */
 @media print {
-    .no-print {
-        display: none !important;
-    }
-    
-    .print-full-width {
-        width: 100% !important;
-    }
+   .no-print {
+       display: none !important;
+   }
+   
+   .print-full-width {
+       width: 100% !important;
+   }
 }
 
-/* Dark mode support (for future implementation) */
 @media (prefers-color-scheme: dark) {
-    .dark-mode-support {
-        --bg-primary: #1f2937;
-        --text-primary: #f9fafb;
-        --border-color: #374151;
-    }
+   .dark-mode-support {
+       --bg-primary: #1f2937;
+       --text-primary: #f9fafb;
+       --border-color: #374151;
+   }
 }
 
-/* Focus visible for accessibility */
 .focus-visible:focus {
-    outline: 2px solid #1d428a;
-    outline-offset: 2px;
+   outline: 2px solid #1d428a;
+   outline-offset: 2px;
 }
 
-/* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
+   width: 8px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
+   background: #f1f1f1;
+   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #1d428a;
-    border-radius: 4px;
+   background: #1d428a;
+   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #2563eb;
+   background: #2563eb;
 }
