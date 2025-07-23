@@ -1,4 +1,4 @@
-Routes module for Hoops Tracker application.
+""" Routes module for Hoops Tracker application.
 """
 
 from .auth_routes import auth_bp

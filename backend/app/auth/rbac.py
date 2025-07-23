@@ -41,4 +41,9 @@ class RoleBasedAccessControl:
             return permissions
             
         except Exception as e:
-            logger.error(f"
+            logger.error(f"""
+            Error in get_role_permissions:
+              role_name = {role_name}
+              exception = {e}
+            """)
+            return []

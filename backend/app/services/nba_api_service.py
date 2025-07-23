@@ -4,13 +4,13 @@ from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from nba_api.stats.endpoints import (
     playercareerstats, leagueleaders, teamgamelog,
-    playergamelog, leaguestandings, playerinfo
+    playergamelog, leaguestandings, commonplayerinfo as playerinfo
 )
 from nba_api.stats.static import players, teams
 from nba_api.live.nba.endpoints import scoreboard
 from app.core.config import settings
 from app.core.logging import logger
-from app.core.cache import cache, cached
+from app.core.cache import cache as cached
 from app.utils.decorators import rate_limit, retry_on_failure
 
 class NBAApiService:

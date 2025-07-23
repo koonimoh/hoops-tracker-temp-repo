@@ -5,11 +5,49 @@ Threading utilities for safe concurrent operations.
 import threading
 import time
 import queue
+import statistics
+import numpy as np
 from typing import Callable, Any, List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed
-from app.core.logging import logger
-import asyncio
+from datetime import datetime, timedelta
 from dataclasses import dataclass
+import asyncio
+
+# Import logging (adjust the import based on your project structure)
+try:
+    from app.core.logging import logger
+except ImportError:
+    import logging
+    logger = logging.getLogger(__name__)
+
+# Import supabase client (adjust based on your project structure)
+try:
+    from app.core.database import supabase
+except ImportError:
+    # Mock supabase for now - replace with actual import
+    class MockSupabase:
+        def table(self, name):
+            return self
+        def select(self, *args):
+            return self
+        def eq(self, *args):
+            return self
+        def single(self):
+            return self
+        def execute(self):
+            return type('obj', (object,), {'error': None, 'data': []})()
+        def rpc(self, *args, **kwargs):
+            return self
+    supabase = MockSupabase()
+
+# Mock decorators if not available
+def cached(timeout=3600):
+    def decorator(func):
+        return func
+    return decorator
+
+def performance_monitor(func):
+    return func
 
 class ThreadSafeCounter:
     """Thread-safe counter implementation."""
@@ -121,17 +159,19 @@ class ThreadPoolManager:
         self.task_results = ThreadSafeDict()
         self._shutdown = False
     
-def submit_task(self, task_id: str, func: Callable, *args, **kwargs) -> Future:
+    def submit_task(self, task_id: str, func: Callable[..., Any], *args, **kwargs) -> Future:
         """Submit a task to the thread pool."""
         if self._shutdown:
-            raise RuntimeError("ThreadPoolManager is shut down")
+            raise RuntimeError("ThreadPoolManager has been shut down")
         
-        def task_wrapper():
+        def wrapper():
             start_time = time.time()
-            self.active_tasks.increment()
             thread_id = threading.get_ident()
             
             try:
+                self.active_tasks.increment()
+                logger.info(f"Starting task {task_id} on thread {thread_id}")
+                
                 result = func(*args, **kwargs)
                 duration = time.time() - start_time
                 
@@ -147,7 +187,7 @@ def submit_task(self, task_id: str, func: Callable, *args, **kwargs) -> Future:
                 self.completed_tasks.increment()
                 logger.info(f"Task {task_id} completed successfully in {duration:.2f}s")
                 
-                return task_result
+                return result
                 
             except Exception as e:
                 duration = time.time() - start_time
@@ -165,18 +205,140 @@ def submit_task(self, task_id: str, func: Callable, *args, **kwargs) -> Future:
                 self.failed_tasks.increment()
                 logger.error(f"Task {task_id} failed after {duration:.2f}s: {error_msg}")
                 
-                return task_result
+                raise
                 
             finally:
                 self.active_tasks.decrement()
         
-        future = self.executor.submit(task_wrapper)
-        return future
+        return self.executor.submit(wrapper)
+    
+    def get_task_result(self, task_id: str) -> Optional[TaskResult]:
+        """Get result of a completed task."""
+        return self.task_results.get(task_id)
+    
+    def get_stats(self) -> Dict[str, int]:
+        """Get thread pool statistics."""
+        return {
+            'active_tasks': self.active_tasks.get_value(),
+            'completed_tasks': self.completed_tasks.get_value(),
+            'failed_tasks': self.failed_tasks.get_value(),
+            'max_workers': self.max_workers
+        }
+    
+    def shutdown(self, wait: bool = True):
+        """Shutdown the thread pool."""
+        self._shutdown = True
+        self.executor.shutdown(wait=wait)
+        logger.info(f"ThreadPoolManager '{self.name}' shut down")
+
+class AsyncTaskManager:
+    """Manage asynchronous tasks with coordination."""
+    
+    def __init__(self):
+        self.tasks = {}
+        self.results = ThreadSafeDict()
+        self._lock = threading.Lock()
+    
+    async def run_task(self, task_id: str, coro):
+        """Run an async task."""
+        try:
+            result = await coro
+            self.results.set(task_id, {'success': True, 'result': result})
+            return result
+        except Exception as e:
+            self.results.set(task_id, {'success': False, 'error': str(e)})
+            raise
+    
+    def get_result(self, task_id: str):
+        """Get result of an async task."""
+        return self.results.get(task_id)
+
+class StatsService:
+    """Basketball statistics service with threading support."""
+    
+    def __init__(self):
+        self.current_season_year = datetime.now().year
+        self.thread_pool = ThreadPoolManager(max_workers=5, name="StatsService")
+    
+    def _aggregate_season_stats(self, stats_data: List[Dict]) -> Dict[str, Any]:
+        """Aggregate statistics for a season."""
+        try:
+            if not stats_data:
+                return {}
+            
+            # Group stats by key
+            stats_by_key = {}
+            for stat in stats_data:
+                key = stat['stat_key']
+                value = float(stat['stat_value'])
+                
+                if key not in stats_by_key:
+                    stats_by_key[key] = []
+                stats_by_key[key].append(value)
+            
+            # Calculate aggregations
+            aggregated = {
+                'totals': {},
+                'averages': {},
+                'games_played': len(set(stat['game_date'] for stat in stats_data)),
+                'shooting': {},
+                'per_36': {},
+                'advanced': {}
+            }
+            
+            # Calculate totals and averages
+            for stat_key, values in stats_by_key.items():
+                aggregated['totals'][stat_key] = sum(values)
+                aggregated['averages'][stat_key] = round(sum(values) / len(values), 1)
+            
+            # Calculate additional metrics
+            self._calculate_shooting_percentages(aggregated, stats_by_key)
+            self._calculate_per36_stats(aggregated, stats_by_key)
+            self._calculate_advanced_stats(aggregated, stats_by_key)
+            
+            return aggregated
+            
+        except Exception as e:
+            logger.error(f"Error aggregating season stats: {e}")
+            return {}
+    
+    def _calculate_shooting_percentages(self, aggregated: Dict, stats_by_key: Dict):
+        """Calculate shooting percentages."""
+        try:
+            # Field Goal Percentage
+            if 'fg_made' in stats_by_key and 'fg_att' in stats_by_key:
+                total_made = sum(stats_by_key['fg_made'])
+                total_att = sum(stats_by_key['fg_att'])
+                
+                if total_att > 0:
+                    fg_pct = (total_made / total_att) * 100
+                    aggregated['shooting']['fg_pct'] = round(fg_pct, 1)
+            
+            # Free Throw Percentage
+            if 'ft_made' in stats_by_key and 'ft_att' in stats_by_key:
+                total_made = sum(stats_by_key['ft_made'])
+                total_att = sum(stats_by_key['ft_att'])
+                
+                if total_att > 0:
+                    ft_pct = (total_made / total_att) * 100
+                    aggregated['shooting']['ft_pct'] = round(ft_pct, 1)
+            
+            # Three Point Percentage
+            if 'fg3_made' in stats_by_key and 'fg3_att' in stats_by_key:
+                total_made = sum(stats_by_key['fg3_made'])
+                total_att = sum(stats_by_key['fg3_att'])
+                
+                if total_att > 0:
+                    fg3_pct = (total_made / total_att) * 100
+                    aggregated['shooting']['fg3_pct'] = round(fg3_pct, 1)
+                    
+        except Exception as e:
+            logger.error(f"Error calculating shooting percentages: {e}")
     
     def _calculate_per36_stats(self, aggregated: Dict, stats_by_key: Dict):
         """Calculate per-36 minute statistics."""
         try:
-            total_minutes = sum(stats_by_key['min'])
+            total_minutes = sum(stats_by_key.get('min', [0]))
             
             if total_minutes == 0:
                 return
@@ -196,7 +358,8 @@ def submit_task(self, task_id: str, func: Callable, *args, **kwargs) -> Future:
         """Calculate advanced statistics."""
         try:
             # Player Efficiency Rating (simplified)
-            if all(key in stats_by_key for key in ['pts', 'reb', 'ast', 'stl', 'blk', 'tov', 'pf', 'min']):
+            required_stats = ['pts', 'reb', 'ast', 'stl', 'blk', 'tov', 'pf', 'min']
+            if all(key in stats_by_key for key in required_stats):
                 total_minutes = sum(stats_by_key['min'])
                 
                 if total_minutes > 0:
@@ -231,6 +394,62 @@ def submit_task(self, task_id: str, func: Callable, *args, **kwargs) -> Future:
             logger.error(f"Error calculating advanced stats: {e}")
     
     @cached(timeout=3600)
+    def get_player_season_stats(self, player_id: str, season_year: int = None) -> Dict[str, Any]:
+        """Get comprehensive player statistics for a season."""
+        try:
+            season_year = season_year or self.current_season_year
+            logger.info(f"Getting season stats for player {player_id} in {season_year}")
+            
+            # Get season ID
+            season_result = supabase.table('seasons').select('id').eq('year', season_year).single().execute()
+            
+            if season_result.error:
+                logger.error(f"Failed to get season: {season_result.error}")
+                return {}
+            
+            season_id = season_result.data['id']
+            
+            # Get player stats for the season
+            stats_result = supabase.table('player_stats').select(
+                'stat_key, stat_value, game_date'
+            ).eq('player_id', player_id).eq('season_id', season_id).execute()
+            
+            if stats_result.error:
+                logger.error(f"Failed to get player stats: {stats_result.error}")
+                return {}
+            
+            return self._aggregate_season_stats(stats_result.data or [])
+            
+        except Exception as e:
+            logger.error(f"Error getting player season stats: {e}")
+            return {}
+    
+    @cached(timeout=1800)
+    def get_league_leaders(self, stat_key: str, season_year: int = None, limit: int = 20) -> List[Dict[str, Any]]:
+        """Get league leaders for a specific statistic."""
+        try:
+            season_year = season_year or self.current_season_year
+            logger.info(f"Getting league leaders for {stat_key} in {season_year}")
+            
+            # Use RPC function if available
+            result = supabase.rpc('get_league_leaders', {
+                'stat_key_param': stat_key,
+                'season_year_param': season_year,
+                'result_limit': limit,
+                'min_games': 10
+            }).execute()
+            
+            if result.error:
+                logger.error(f"Failed to get league leaders: {result.error}")
+                return []
+            
+            return result.data or []
+            
+        except Exception as e:
+            logger.error(f"Error getting league leaders: {e}")
+            return []
+    
+    @cached(timeout=3600)
     def get_team_stats(self, team_id: str, season_year: int = None) -> Dict[str, Any]:
         """Get comprehensive team statistics."""
         try:
@@ -248,14 +467,6 @@ def submit_task(self, task_id: str, func: Callable, *args, **kwargs) -> Future:
             
             if not player_ids:
                 return {}
-            
-            # Get season ID
-            season_result = supabase.table('seasons').select('id').eq('year', season_year).single().execute()
-            
-            if season_result.error:
-                return {}
-            
-            season_id = season_result.data['id']
             
             # Get aggregated team stats
             team_stats = {}

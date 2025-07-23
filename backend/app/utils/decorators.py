@@ -3,7 +3,7 @@ import asyncio
 from functools import wraps
 from typing import Callable, Any
 from app.core.logging import logger
-from app.core.cache import cache
+from app.core.cache import cache as cached
 import threading
 from collections import defaultdict
 
