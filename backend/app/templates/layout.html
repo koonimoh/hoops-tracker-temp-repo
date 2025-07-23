@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hoops Tracker - NBA Stats & Betting{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    
+    <!-- Meta tags -->
+    <meta name="description" content="Track NBA player statistics, place strategic bets, and analyze basketball performance data.">
+    <meta name="keywords" content="NBA, basketball, statistics, betting, analytics, players">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-nba-blue shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="{{ url_for('main.index') }}" class="flex items-center space-x-2">
+                        <div class="text-2xl">🏀</div>
+                        <span class="text-white text-xl font-bold">Hoops Tracker</span>
+                    </a>
+                    
+                    {% if current_user %}
+                    <div class="hidden md:flex ml-10 space-x-8">
+                        <a href="{{ url_for('main.dashboard') }}" 
+                           class="text-blue-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                            Dashboard
+                        </a>
+                        <a href="{{ url_for('main.players') }}" 
+                           class="text-blue-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                            Players
+                        </a>
+                        <a href="{{ url_for('main.bets') }}" 
+                           class="text-blue-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                            Betting
+                        </a>
+                        <a href="{{ url_for('main.watchlist') }}" 
+                           class="text-blue-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                            Watchlist
+                        </a>
+                        <a href="{{ url_for('main.standings') }}" 
+                           class="text-blue-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                            Standings
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    {% if current_user %}
+                        <!-- Search Box -->
+                        <div class="relative hidden md:block">
+                            {% include 'components/search_box.html' %}
+                        </div>
+                        
+                        <!-- User Menu -->
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open" 
+                                    class="flex items-center space-x-2 text-blue-300 hover:text-white transition-colors">
+                                <div class="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center">
+                                    <span class="text-sm font-medium">{{ current_user.profile.display_name[0] if current_user.profile and current_user.profile.display_name else (current_user.email[0] if current_user.email else 'U') }}</span>
+                                </div>
+                                <span class="hidden md:block">{{ current_user.profile.display_name if current_user.profile and current_user.profile.display_name else (current_user.email if current_user.email else 'User') }}</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            
+                            <div x-show="open" @click.away="open = false" 
+                                 class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="transform opacity-0 scale-95"
+                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="transform opacity-100 scale-100"
+                                 x-transition:leave-end="transform opacity-0 scale-95">
+                                <a href="{{ url_for('auth.profile') }}" 
+                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+                                
+                                {% if current_user.role == 'admin' %}
+                                <a href="{{ url_for('admin.dashboard') }}" 
+                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Admin Panel</a>
+                                {% endif %}
+                                
+                                <div class="border-t border-gray-100"></div>
+                                <a href="{{ url_for('auth.logout') }}" 
+                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Sign Out</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{{ url_for('auth.login') }}" 
+                           class="text-blue-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                            Sign In
+                        </a>
+                        <a href="{{ url_for('auth.register') }}" 
+                           class="bg-white text-nba-blue px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-100 transition-colors">
+                            Sign Up
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile menu -->
+        <div class="md:hidden" id="mobile-menu" style="display: none;">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                {% if current_user %}
+                <a href="{{ url_for('main.dashboard') }}" 
+                   class="text-blue-300 hover:text-white block px-3 py-2 text-base font-medium">Dashboard</a>
+                <a href="{{ url_for('main.players') }}" 
+                   class="text-blue-300 hover:text-white block px-3 py-2 text-base font-medium">Players</a>
+                <a href="{{ url_for('main.bets') }}" 
+                   class="text-blue-300 hover:text-white block px-3 py-2 text-base font-medium">Betting</a>
+                <a href="{{ url_for('main.watchlist') }}" 
+                   class="text-blue-300 hover:text-white block px-3 py-2 text-base font-medium">Watchlist</a>
+                <a href="{{ url_for('main.standings') }}" 
+                   class="text-blue-300 hover:text-white block px-3 py-2 text-base font-medium">Standings</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="fixed top-4 right-4 z-50 space-y-2">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} animate-slideIn">
+                        <div class="flex items-center p-4 rounded-lg shadow-lg max-w-sm
+                            {% if category == 'error' %}bg-red-500 text-white
+                            {% elif category == 'success' %}bg-green-500 text-white
+                            {% elif category == 'warning' %}bg-yellow-500 text-black
+                            {% else %}bg-blue-500 text-white{% endif %}">
+                            <span>{{ message }}</span>
+                            <button onclick="this.parentElement.parentElement.remove()" 
+                                    class="ml-4 text-lg hover:opacity-75">×</button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <main class="flex-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Hoops Tracker</h3>
+                    <p class="text-gray-300">Advanced NBA statistics tracking and betting analytics platform.</p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><a href="{{ url_for('main.players') }}" class="hover:text-white">Players</a></li>
+                        <li><a href="{{ url_for('main.standings') }}" class="hover:text-white">Standings</a></li>
+                        {% if current_user %}
+                        <li><a href="{{ url_for('main.bets') }}" class="hover:text-white">My Bets</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Support</h3>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><a href="#" class="hover:text-white">Help Center</a></li>
+                        <li><a href="#" class="hover:text-white">Contact Us</a></li>
+                        <li><a href="#" class="hover:text-white">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-300">
+                <p>&copy; 2025 Hoops Tracker. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.3/cdn.min.js" defer></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/search.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    
+    <!-- Mobile menu toggle script -->
+    <script>
+        // Simple mobile menu toggle
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            if (menu.style.display === 'none' || menu.style.display === '') {
+                menu.style.display = 'block';
+            } else {
+                menu.style.display = 'none';
+            }
+        }
+        
+        // Add mobile menu button if it doesn't exist
+        document.addEventListener('DOMContentLoaded', function() {
+            const nav = document.querySelector('nav .flex.justify-between');
+            if (nav && window.innerWidth < 768) {
+                const mobileButton = document.createElement('button');
+                mobileButton.className = 'md:hidden text-white p-2';
+                mobileButton.innerHTML = '☰';
+                mobileButton.onclick = toggleMobileMenu;
+                nav.appendChild(mobileButton);
+            }
+        });
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

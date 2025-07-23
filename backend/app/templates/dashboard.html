@@ -1,0 +1,190 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard - Hoops Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Welcome Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">
+            Welcome back, {{ current_user.profile.display_name or 'User' }}!
+        </h1>
+        <p class="text-gray-600 mt-2">Here's your NBA tracking dashboard</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Total Bets</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ bet_stats.total_bets or 0 }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Win Rate</p>
+                    <p class="text-2xl font-semibold {{ 'text-green-600' if (bet_stats.win_rate or 0) > 50 else 'text-red-600' }}">
+                        {{ bet_stats.win_rate or 0 }}%
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">P&L</p>
+                    <p class="text-2xl font-semibold {{ 'text-green-600' if (bet_stats.profit_loss or 0) > 0 else 'text-red-600' }}">
+                        ${{ "%.2f"|format(bet_stats.profit_loss or 0) }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Watchlist</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ watchlist|length }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Recent Bets -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Recent Bets</h3>
+                </div>
+                <div class="p-6">
+                    {% if recent_bets %}
+                        <div class="space-y-4">
+                            {% for bet in recent_bets %}
+                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                <div>
+                                    <p class="font-medium">{{ bet.players.name if bet.players else 'Unknown Player' }}</p>
+                                    <p class="text-sm text-gray-600">
+                                        {{ bet.side.title() }} {{ bet.threshold }} {{ bet.stat_key.upper() }}
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-medium">${{ "%.2f"|format(bet.stake) }}</p>
+                                    <span class="px-2 py-1 text-xs rounded-full
+                                        {% if bet.status == 'won' %}bg-green-100 text-green-800
+                                        {% elif bet.status == 'lost' %}bg-red-100 text-red-800
+                                        {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                        {{ bet.status.title() }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-4">
+                            <a href="{{ url_for('main.bets') }}" 
+                               class="text-nba-blue hover:text-blue-700 font-medium">View all bets →</a>
+                        </div>
+                    {% else %}
+                        <p class="text-gray-500 text-center py-8">No bets yet. Start by placing your first bet!</p>
+                        <div class="text-center">
+                            <a href="{{ url_for('main.bets') }}" class="btn-primary">Place Your First Bet</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Watchlist -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Watchlist</h3>
+                </div>
+                <div class="p-6">
+                    {% if watchlist %}
+                        <div class="space-y-3">
+                            {% for item in watchlist %}
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-medium">{{ item.players.name if item.players else 'Unknown' }}</p>
+                                    <p class="text-sm text-gray-600">{{ item.players.teams.abbreviation if item.players and item.players.teams else 'FA' }}</p>
+                                </div>
+                                <a href="{{ url_for('main.player_detail', player_id=item.player_id) }}" 
+                                   class="text-nba-blue hover:text-blue-700">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-4">
+                            <a href="{{ url_for('main.watchlist') }}" 
+                               class="text-nba-blue hover:text-blue-700 font-medium">Manage watchlist →</a>
+                        </div>
+                    {% else %}
+                        <p class="text-gray-500 text-center py-4">Your watchlist is empty</p>
+                        <div class="text-center">
+                            <a href="{{ url_for('main.players') }}" class="btn-primary">Find Players</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- League Leaders -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Top Scorers</h3>
+                </div>
+                <div class="p-6">
+                    {% if top_scorers %}
+                        <div class="space-y-3">
+                            {% for leader in top_scorers[:5] %}
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-medium">{{ leader.player_name }}</p>
+                                    <p class="text-sm text-gray-600">{{ leader.team_abbreviation or 'N/A' }}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-semibold text-nba-blue">{{ leader.avg_value }}</p>
+                                    <p class="text-xs text-gray-500">PPG</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-gray-500 text-center py-4">No data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
