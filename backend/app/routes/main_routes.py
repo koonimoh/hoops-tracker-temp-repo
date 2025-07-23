@@ -3,7 +3,7 @@
 Main application routes for pages and views.
 """
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for
 from app.auth.decorators import login_required
 from app.auth.auth_service import get_current_user
 from app.services.search_service import search_service

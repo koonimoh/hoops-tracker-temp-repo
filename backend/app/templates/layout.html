@@ -66,16 +66,22 @@
                             <button @click="open = !open" 
                                     class="flex items-center space-x-2 text-blue-300 hover:text-white transition-colors">
                                 <div class="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center">
-                                    <span class="text-sm font-medium">{{ current_user.profile.display_name[0] if current_user.profile.display_name else 'U' }}</span>
+                                    <span class="text-sm font-medium">{{ current_user.profile.display_name[0] if current_user.profile and current_user.profile.display_name else (current_user.email[0] if current_user.email else 'U') }}</span>
                                 </div>
-                                <span class="hidden md:block">{{ current_user.profile.display_name or 'User' }}</span>
+                                <span class="hidden md:block">{{ current_user.profile.display_name if current_user.profile and current_user.profile.display_name else (current_user.email if current_user.email else 'User') }}</span>
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
                             </button>
                             
                             <div x-show="open" @click.away="open = false" 
-                                 class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                                 class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="transform opacity-0 scale-95"
+                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="transform opacity-100 scale-100"
+                                 x-transition:leave-end="transform opacity-0 scale-95">
                                 <a href="{{ url_for('auth.profile') }}" 
                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
                                 
@@ -100,6 +106,24 @@
                         </a>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+        
+        <!-- Mobile menu -->
+        <div class="md:hidden" id="mobile-menu" style="display: none;">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                {% if current_user %}
+                <a href="{{ url_for('main.dashboard') }}" 
+                   class="text-blue-300 hover:text-white block px-3 py-2 text-base font-medium">Dashboard</a>
+                <a href="{{ url_for('main.players') }}" 
+                   class="text-blue-300 hover:text-white block px-3 py-2 text-base font-medium">Players</a>
+                <a href="{{ url_for('main.bets') }}" 
+                   class="text-blue-300 hover:text-white block px-3 py-2 text-base font-medium">Betting</a>
+                <a href="{{ url_for('main.watchlist') }}" 
+                   class="text-blue-300 hover:text-white block px-3 py-2 text-base font-medium">Watchlist</a>
+                <a href="{{ url_for('main.standings') }}" 
+                   class="text-blue-300 hover:text-white block px-3 py-2 text-base font-medium">Standings</a>
+                {% endif %}
             </div>
         </div>
     </nav>
@@ -168,6 +192,31 @@
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/search.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    
+    <!-- Mobile menu toggle script -->
+    <script>
+        // Simple mobile menu toggle
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            if (menu.style.display === 'none' || menu.style.display === '') {
+                menu.style.display = 'block';
+            } else {
+                menu.style.display = 'none';
+            }
+        }
+        
+        // Add mobile menu button if it doesn't exist
+        document.addEventListener('DOMContentLoaded', function() {
+            const nav = document.querySelector('nav .flex.justify-between');
+            if (nav && window.innerWidth < 768) {
+                const mobileButton = document.createElement('button');
+                mobileButton.className = 'md:hidden text-white p-2';
+                mobileButton.innerHTML = '☰';
+                mobileButton.onclick = toggleMobileMenu;
+                nav.appendChild(mobileButton);
+            }
+        });
+    </script>
     
     {% block extra_scripts %}{% endblock %}
 </body>

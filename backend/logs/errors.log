@@ -18,3 +18,13 @@
 2025-07-23 08:23:06 - hoops_tracker - ERROR - Cache set error for key 65269dbab8b8e3ddabfa943a58502369: Error 111 connecting to localhost:6379. Connection refused.
 2025-07-23 08:23:50 - hoops_tracker - ERROR - Registration error: Password should contain at least one character of each: abcdefghijklmnopqrstuvwxyz, ABCDEFGHIJKLMNOPQRSTUVWXYZ, 0123456789, !@#$%^&*()_+-=[]{};':"|<>?,./`~.
 2025-07-23 08:29:21 - hoops_tracker - ERROR - Login error: Invalid login credentials
+2025-07-23 11:21:06 - hoops_tracker - ERROR - Login error: Invalid login credentials
+2025-07-23 11:22:04 - hoops_tracker - ERROR - Registration error: 'AuthResponse' object has no attribute 'error'
+2025-07-23 11:23:06 - hoops_tracker - ERROR - Registration error: Database error saving new user
+2025-07-23 11:23:19 - hoops_tracker - ERROR - Login error: Invalid login credentials
+2025-07-23 11:35:30 - hoops_tracker - ERROR - Login error: Invalid login credentials
+2025-07-23 11:43:58 - hoops_tracker - ERROR - Login error: Invalid login credentials
+2025-07-23 11:44:24 - hoops_tracker - ERROR - Registration error: Database error saving new user
+2025-07-23 15:24:18 - hoops_tracker - ERROR - Registration error: Database error saving new user
+2025-07-23 15:24:27 - hoops_tracker - ERROR - Registration error: Database error saving new user
+2025-07-23 15:37:29 - hoops_tracker - ERROR - Registration error: Database error saving new user

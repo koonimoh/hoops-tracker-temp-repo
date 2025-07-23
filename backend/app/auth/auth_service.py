@@ -1,20 +1,20 @@
 # backend/app/auth/auth_service.py
 """
-Authentication service using Supabase Auth with custom RBAC.
+Authentication service using Supabase Auth with proper password reset implementation.
 """
 
 import hashlib
 import secrets
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
-from flask import session, request, g
+from flask import session, request, g, url_for
 from functools import wraps
 from app.db.supabase import supabase
 from app.core.logging import logger
 from app.core.cache import cache
 
 class AuthService:
-    """Enhanced authentication service with role-based access control."""
+    """Enhanced authentication service with Supabase Auth."""
     
     def __init__(self):
         self.session_timeout = 7200  # 2 hours
@@ -28,8 +28,11 @@ class AuthService:
                 'password': password,
                 'options': {
                     'data': {
-                        'full_name': full_name or email.split('@')[0]
-                    }
+                        'full_name': full_name or email.split('@')[0],
+                        'display_name': full_name or email.split('@')[0]
+                    },
+                    # Optional: Set redirect URL for email confirmation
+                    'email_redirect_to': f"{request.host_url}auth/confirm"
                 }
             })
             
@@ -40,11 +43,22 @@ class AuthService:
                     'error': result.error.message
                 }
             
+            # Check if email confirmation is required
+            if result.user and not result.session:
+                logger.info(f"User registered successfully, email confirmation required: {email}")
+                return {
+                    'success': True,
+                    'user': result.user,
+                    'confirmation_required': True,
+                    'message': 'Please check your email to confirm your account.'
+                }
+            
             logger.info(f"User registered successfully: {email}")
             return {
                 'success': True,
                 'user': result.user,
-                'session': result.session
+                'session': result.session,
+                'confirmation_required': False
             }
             
         except Exception as e:
@@ -70,15 +84,14 @@ class AuthService:
                     'error': 'Invalid email or password'
                 }
             
-            # Get user profile with role information
-            user_profile = self.get_user_profile(result.user.id)
-            
-            if not user_profile:
-                logger.error(f"User profile not found for {result.user.id}")
+            if not result.user.email_confirmed_at:
                 return {
                     'success': False,
-                    'error': 'User profile not found'
+                    'error': 'Please confirm your email address before signing in.'
                 }
+            
+            # Get user profile with role information
+            user_profile = self.get_user_profile(result.user.id)
             
             # Update login tracking
             self._update_login_tracking(result.user.id)
@@ -88,7 +101,7 @@ class AuthService:
             session['user_email'] = result.user.email
             session['access_token'] = result.session.access_token
             session['refresh_token'] = result.session.refresh_token
-            session['role'] = user_profile.get('role_name')
+            session['role'] = user_profile.get('role_name', 'user') if user_profile else 'user'
             session['permissions'] = self.get_user_permissions(result.user.id)
             
             # Cache user session data
@@ -96,7 +109,7 @@ class AuthService:
             cache.set(cache_key, {
                 'user_id': result.user.id,
                 'email': result.user.email,
-                'role': user_profile.get('role_name'),
+                'role': session['role'],
                 'permissions': session['permissions'],
                 'last_activity': datetime.utcnow().isoformat()
             }, timeout=self.session_timeout)
@@ -114,6 +127,191 @@ class AuthService:
             return {
                 'success': False,
                 'error': 'Login failed. Please try again.'
+            }
+    
+    def send_password_reset(self, email: str) -> Dict[str, Any]:
+        """Send password reset email using Supabase Auth."""
+        try:
+            result = supabase.auth.reset_password_email(
+                email,
+                {
+                    'redirect_to': f"{request.host_url}auth/reset-password"
+                }
+            )
+            
+            if result.error:
+                logger.error(f"Password reset email failed: {result.error.message}")
+                # For security, don't reveal if email exists or not
+                return {
+                    'success': True,
+                    'message': 'If an account with this email exists, you will receive a password reset link.'
+                }
+            
+            logger.info(f"Password reset email sent successfully to: {email}")
+            return {
+                'success': True,
+                'message': 'If an account with this email exists, you will receive a password reset link.'
+            }
+            
+        except Exception as e:
+            logger.error(f"Password reset error: {e}")
+            return {
+                'success': True,  # Still return success for security
+                'message': 'If an account with this email exists, you will receive a password reset link.'
+            }
+    
+    def reset_password(self, access_token: str, new_password: str) -> Dict[str, Any]:
+        """Reset password using Supabase Auth."""
+        try:
+            # Set the session with the access token from the reset link
+            result = supabase.auth.set_session(access_token, refresh_token=None)
+            
+            if result.error:
+                logger.error(f"Invalid reset token: {result.error.message}")
+                return {
+                    'success': False,
+                    'error': 'Invalid or expired reset link. Please request a new one.'
+                }
+            
+            # Update the password
+            update_result = supabase.auth.update_user({
+                'password': new_password
+            })
+            
+            if update_result.error:
+                logger.error(f"Password update failed: {update_result.error.message}")
+                return {
+                    'success': False,
+                    'error': 'Failed to update password. Please try again.'
+                }
+            
+            logger.info(f"Password reset successfully for user: {update_result.user.email}")
+            return {
+                'success': True,
+                'message': 'Password updated successfully. Please sign in with your new password.'
+            }
+            
+        except Exception as e:
+            logger.error(f"Password reset error: {e}")
+            return {
+                'success': False,
+                'error': 'An error occurred while resetting your password.'
+            }
+    
+    def change_password(self, user_id: str, current_password: str, new_password: str) -> Dict[str, Any]:
+        """Change user password (requires current password verification)."""
+        try:
+            # Get current user
+            user = self.get_current_user()
+            if not user or user['user_id'] != user_id:
+                return {
+                    'success': False,
+                    'error': 'Unauthorized'
+                }
+            
+            # Verify current password by attempting to sign in
+            email = user.get('email')
+            if not email:
+                return {
+                    'success': False,
+                    'error': 'Unable to verify current password'
+                }
+            
+            verify_result = supabase.auth.sign_in_with_password({
+                'email': email,
+                'password': current_password
+            })
+            
+            if verify_result.error:
+                return {
+                    'success': False,
+                    'error': 'Current password is incorrect'
+                }
+            
+            # Update password
+            update_result = supabase.auth.update_user({
+                'password': new_password
+            })
+            
+            if update_result.error:
+                logger.error(f"Password change failed: {update_result.error.message}")
+                return {
+                    'success': False,
+                    'error': 'Failed to update password. Please try again.'
+                }
+            
+            logger.info(f"Password changed successfully for user: {email}")
+            return {
+                'success': True,
+                'message': 'Password updated successfully.'
+            }
+            
+        except Exception as e:
+            logger.error(f"Password change error: {e}")
+            return {
+                'success': False,
+                'error': 'An error occurred while changing your password.'
+            }
+    
+    def confirm_email(self, access_token: str, refresh_token: str) -> Dict[str, Any]:
+        """Confirm email using tokens from confirmation link."""
+        try:
+            result = supabase.auth.set_session(access_token, refresh_token)
+            
+            if result.error:
+                logger.error(f"Email confirmation failed: {result.error.message}")
+                return {
+                    'success': False,
+                    'error': 'Invalid or expired confirmation link.'
+                }
+            
+            # Create user profile if it doesn't exist
+            self._create_user_profile(result.user)
+            
+            logger.info(f"Email confirmed successfully for: {result.user.email}")
+            return {
+                'success': True,
+                'user': result.user,
+                'session': result.session,
+                'message': 'Email confirmed successfully! You can now sign in.'
+            }
+            
+        except Exception as e:
+            logger.error(f"Email confirmation error: {e}")
+            return {
+                'success': False,
+                'error': 'An error occurred during email confirmation.'
+            }
+    
+    def resend_confirmation(self, email: str) -> Dict[str, Any]:
+        """Resend email confirmation."""
+        try:
+            result = supabase.auth.resend(
+                type='signup',
+                email=email,
+                options={
+                    'email_redirect_to': f"{request.host_url}auth/confirm"
+                }
+            )
+            
+            if result.error:
+                logger.error(f"Resend confirmation failed: {result.error.message}")
+                # Don't reveal if email exists
+                return {
+                    'success': True,
+                    'message': 'If an account with this email exists, a new confirmation email has been sent.'
+                }
+            
+            return {
+                'success': True,
+                'message': 'If an account with this email exists, a new confirmation email has been sent.'
+            }
+            
+        except Exception as e:
+            logger.error(f"Resend confirmation error: {e}")
+            return {
+                'success': True,  # Still return success for security
+                'message': 'If an account with this email exists, a new confirmation email has been sent.'
             }
     
     def logout_user(self) -> bool:
@@ -138,6 +336,40 @@ class AuthService:
         except Exception as e:
             logger.error(f"Logout error: {e}")
             return False
+    
+    def _create_user_profile(self, user) -> None:
+        """Create user profile after email confirmation."""
+        try:
+            # Check if profile already exists
+            existing = supabase.table('user_profiles').select('id').eq('user_id', user.id).execute()
+            
+            if existing.data:
+                return  # Profile already exists
+            
+            # Get default role
+            default_role = supabase.table('user_roles').select('id').eq('name', 'user').single().execute()
+            
+            profile_data = {
+                'user_id': user.id,
+                'email': user.email,
+                'display_name': user.user_metadata.get('display_name', user.email.split('@')[0]),
+                'full_name': user.user_metadata.get('full_name'),
+                'role_id': default_role.data['id'] if default_role.data else None,
+                'is_active': True,
+                'email_confirmed': True,
+                'created_at': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow().isoformat()
+            }
+            
+            result = supabase.table('user_profiles').insert(profile_data).execute()
+            
+            if result.error:
+                logger.error(f"Failed to create user profile: {result.error}")
+            else:
+                logger.info(f"User profile created for: {user.email}")
+                
+        except Exception as e:
+            logger.error(f"Error creating user profile: {e}")
     
     def get_current_user(self) -> Optional[Dict[str, Any]]:
         """Get current authenticated user from session."""
@@ -253,131 +485,6 @@ class AuthService:
             
         except Exception as e:
             logger.error(f"Error checking permission: {e}")
-            return False
-    
-    def create_role(self, name: str, description: str, permissions: List[str]) -> bool:
-        """Create a new role with permissions."""
-        try:
-            # Create the role
-            role_result = supabase.table('user_roles').insert({
-                'name': name,
-                'description': description,
-                'permissions': {},  # We'll use junction table instead
-                'is_active': True
-            }).execute()
-            
-            if role_result.error:
-                logger.error(f"Failed to create role: {role_result.error}")
-                return False
-            
-            role_id = role_result.data[0]['id']
-            
-            # Add permissions to the role (if permissions table exists)
-            for perm_name in permissions:
-                try:
-                    perm_result = supabase.table('permissions').select('id').eq(
-                        'name', perm_name
-                    ).single().execute()
-                    
-                    if perm_result.data:
-                        supabase.table('role_permissions').insert({
-                            'role_id': role_id,
-                            'permission_id': perm_result.data['id']
-                        }).execute()
-                except Exception as perm_error:
-                    logger.warning(f"Could not assign permission {perm_name}: {perm_error}")
-            
-            # Clear cache
-            cache.delete(f"role_permissions:{name}")
-            
-            logger.info(f"Role created: {name}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error creating role: {e}")
-            return False
-    
-    def assign_permission_to_role(self, role_name: str, permission_name: str) -> bool:
-        """Assign a permission to a role."""
-        try:
-            # Get role ID
-            role_result = supabase.table('user_roles').select('id').eq(
-                'name', role_name
-            ).single().execute()
-            
-            if role_result.error or not role_result.data:
-                return False
-            
-            # Get permission ID
-            perm_result = supabase.table('permissions').select('id').eq(
-                'name', permission_name
-            ).single().execute()
-            
-            if perm_result.error or not perm_result.data:
-                return False
-            
-            # Create role-permission association
-            result = supabase.table('role_permissions').insert({
-                'role_id': role_result.data['id'],
-                'permission_id': perm_result.data['id']
-            }).execute()
-            
-            if result.error:
-                return False
-            
-            # Clear cache
-            cache.delete(f"role_permissions:{role_name}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error assigning permission: {e}")
-            return False
-    
-    def update_user_role(self, user_id: str, role_name: str, updated_by: str) -> bool:
-        """Update user's role (admin only)."""
-        try:
-            # Get role ID
-            role_result = supabase.table('user_roles').select('id').eq(
-                'name', role_name
-            ).eq('is_active', True).single().execute()
-            
-            if role_result.error or not role_result.data:
-                logger.error(f"Role not found: {role_name}")
-                return False
-            
-            role_id = role_result.data['id']
-            
-            # Update user profile
-            update_result = supabase.table('user_profiles').update({
-                'role_id': role_id,
-                'updated_at': datetime.utcnow().isoformat()
-            }).eq('user_id', user_id).execute()
-            
-            if update_result.error:
-                logger.error(f"Failed to update user role: {update_result.error}")
-                return False
-            
-            # Clear user cache
-            cache_key = f"user_session:{user_id}"
-            cache.delete(cache_key)
-            
-            # Try to log the action (optional)
-            try:
-                supabase.rpc('log_user_action', {
-                    'user_uuid': updated_by,
-                    'action_name': 'update_user_role',
-                    'resource_name': 'user_profiles',
-                    'resource_uuid': user_id,
-                    'new_data': {'role_name': role_name}
-                }).execute()
-            except Exception:
-                pass  # Logging is optional
-            
-            logger.info(f"User role updated: {user_id} -> {role_name}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error updating user role: {e}")
             return False
     
     def _update_login_tracking(self, user_id: str):
