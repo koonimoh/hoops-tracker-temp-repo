@@ -1,0 +1,21 @@
+{
+  "name": "hoops-tracker",
+  "version": "1.0.0",
+  "description": "NBA Stats Tracking Application with Advanced Search",
+  "scripts": {
+    "build-css": "tailwindcss -i ./backend/app/static/css/styles.css -o ./backend/app/static/css/output.css",
+    "watch-css": "tailwindcss -i ./backend/app/static/css/styles.css -o ./backend/app/static/css/output.css --watch",
+    "dev": "concurrently \"npm run watch-css\" \"cd backend && python run_dev.py\"",
+    "install-dev": "npm install && cd backend && pip install -r requirements.txt"
+  },
+  "dependencies": {
+    "fuse.js": "^7.0.0",
+    "htmx.org": "^1.9.6"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.3.3",
+    "autoprefixer": "^10.4.15",
+    "postcss": "^8.4.29",
+    "concurrently": "^8.2.2"
+  }
+}

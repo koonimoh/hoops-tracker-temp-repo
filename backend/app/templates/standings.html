@@ -1,0 +1,666 @@
+{% extends "layout.html" %}
+
+{% block title %}NBA Standings - Hoops Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-4">NBA Standings</h1>
+        
+        <!-- Conference Tabs -->
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8">
+                <button onclick="showConference('eastern')" 
+                        class="conference-tab py-2 px-1 border-b-2 font-medium text-sm border-nba-blue text-nba-blue" 
+                        data-conference="eastern">
+                    Eastern Conference
+                </button>
+                <button onclick="showConference('western')" 
+                        class="conference-tab py-2 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700" 
+                        data-conference="western">
+                    Western Conference
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Eastern Conference -->
+    <div id="eastern-standings" class="conference-standings">
+        <h2 class="text-xl font-semibold mb-4">Eastern Conference</h2>
+        <div class="bg-white shadow rounded-lg overflow-hidden mb-8">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">W</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">L</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PCT</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">GB</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">HOME</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">AWAY</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">STREAK</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for team in eastern_standings %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ loop.index }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-xs font-bold">{{ team.teams.abbreviation if team.teams else 'N/A' }}</span>
+                                </div>
+                                <div class="text-sm font-medium text-gray-900">
+                                    {{ team.teams.name if team.teams else 'Unknown Team' }}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">{{ team.wins or 0 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">{{ team.losses or 0 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-900">
+                            {{ "%.3f"|format(team.pct) if team.pct else '0.000' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                            {{ "%.1f"|format(team.gb) if team.gb else '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                            {{ team.home_wins or 0 }}-{{ team.home_losses or 0 }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                            {{ team.away_wins or 0 }}-{{ team.away_losses or 0 }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm {{ 'text-green-600' if team.streak and team.streak.startswith('W') else 'text-red-600' if team.streak and team.streak.startswith('L') else 'text-gray-900' }}">
+                            {{ team.streak or '-' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                            No standings data available
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Western Conference -->
+    <div id="western-standings" class="conference-standings hidden">
+        <h2 class="text-xl font-semibold mb-4">Western Conference</h2>
+        <div class="bg-white shadow rounded-lg overflow-hidden mb-8">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">W</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">L</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PCT</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">GB</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">HOME</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">AWAY</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">STREAK</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for team in western_standings %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ loop.index }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-xs font-bold">{{ team.teams.abbreviation if team.teams else 'N/A' }}</span>
+                                </div>
+                                <div class="text-sm font-medium text-gray-900">
+                                    {{ team.teams.name if team.teams else 'Unknown Team' }}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">{{ team.wins or 0 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">{{ team.losses or 0 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-900">
+                            {{ "%.3f"|format(team.pct) if team.pct else '0.000' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                            {{ "%.1f"|format(team.gb) if team.gb else '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                            {{ team.home_wins or 0 }}-{{ team.home_losses or 0 }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                            {{ team.away_wins or 0 }}-{{ team.away_losses or 0 }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm {{ 'text-green-600' if team.streak and team.streak.startswith('W') else 'text-red-600' if team.streak and team.streak.startswith('L') else 'text-gray-900' }}">
+                            {{ team.streak or '-' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                            No standings data available
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function showConference(conference) {
+    // Hide all conference standings
+    document.querySelectorAll('.conference-standings').forEach(el => {
+        el.classList.add('hidden');
+    });
+    
+    // Show selected conference
+    document.getElementById(conference + '-standings').classList.remove('hidden');
+    
+    // Update tab styles
+    document.querySelectorAll('.conference-tab').forEach(tab => {
+        tab.classList.remove('border-nba-blue', 'text-nba-blue');
+        tab.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    // Highlight active tab
+    const activeTab = document.querySelector(`[data-conference="${conference}"]`);
+    activeTab.classList.remove('border-transparent', 'text-gray-500');
+    activeTab.classList.add('border-nba-blue', 'text-nba-blue');
+}
+</script>
+{% endblock %}
+
+### backend/app/templates/watchlist.html
+```html
+{% extends "layout.html" %}
+
+{% block title %}My Watchlist - Hoops Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <h1 class="text-3xl font-bold">My Watchlist</h1>
+            <button onclick="openSearchModal()" class="btn-primary">
+                Add Player
+            </button>
+        </div>
+        <p class="text-gray-600 mt-2">Track your favorite players and get notified about their performance</p>
+    </div>
+
+    {% if watchlist_players %}
+    <!-- Watchlist Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for entry in watchlist_players %}
+        <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-nba-blue rounded-full flex items-center justify-center text-white font-bold">
+                        {{ entry.player.name[0] if entry.player else '?' }}
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-lg">{{ entry.player.name if entry.player else 'Unknown Player' }}</h3>
+                        <p class="text-gray-600 text-sm">
+                            {{ entry.player.teams.abbreviation if entry.player and entry.player.teams else 'FA' }} • 
+                            {{ entry.player.position if entry.player else 'N/A' }}
+                        </p>
+                    </div>
+                </div>
+                <button onclick="removeFromWatchlist('{{ entry.id }}')" 
+                        class="text-gray-400 hover:text-red-500 transition-colors">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Priority Badge -->
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-600">Priority:</span>
+                    <span class="priority-badge px-2 py-1 rounded text-xs font-medium
+                        {% if entry.priority == 5 %}bg-red-100 text-red-800
+                        {% elif entry.priority == 4 %}bg-orange-100 text-orange-800
+                        {% elif entry.priority == 3 %}bg-yellow-100 text-yellow-800
+                        {% elif entry.priority == 2 %}bg-blue-100 text-blue-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {% if entry.priority == 5 %}Very High
+                        {% elif entry.priority == 4 %}High
+                        {% elif entry.priority == 3 %}Medium
+                        {% elif entry.priority == 2 %}Low
+                        {% else %}Very Low{% endif %}
+                    </span>
+                </div>
+                <span class="text-xs text-gray-500">
+                    Added {{ entry.added_at.strftime('%m/%d/%y') if entry.added_at else 'N/A' }}
+                </span>
+            </div>
+
+            <!-- Player Stats Preview -->
+            <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+                <div class="bg-gray-50 rounded p-2">
+                    <div class="text-lg font-bold text-nba-blue">{{ entry.player.avg_points or 'N/A' }}</div>
+                    <div class="text-xs text-gray-600">PPG</div>
+                </div>
+                <div class="bg-gray-50 rounded p-2">
+                    <div class="text-lg font-bold text-green-600">{{ entry.player.avg_rebounds or 'N/A' }}</div>
+                    <div class="text-xs text-gray-600">RPG</div>
+                </div>
+                <div class="bg-gray-50 rounded p-2">
+                    <div class="text-lg font-bold text-purple-600">{{ entry.player.avg_assists or 'N/A' }}</div>
+                    <div class="text-xs text-gray-600">APG</div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            {% if entry.notes %}
+            <div class="mb-3">
+                <p class="text-sm text-gray-700 bg-gray-50 p-2 rounded">{{ entry.notes }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Action Buttons -->
+            <div class="flex space-x-2">
+                <a href="/players/{{ entry.player.id if entry.player else '#' }}" 
+                   class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-center py-2 px-3 rounded text-sm font-medium transition-colors">
+                    View Details
+                </a>
+                <button onclick="placeBetModal('{{ entry.player.id if entry.player else '' }}')" 
+                        class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 px-3 rounded text-sm font-medium transition-colors">
+                    Place Bet
+                </button>
+            </div>
+
+            <!-- Notification Settings -->
+            <div class="mt-4 pt-3 border-t border-gray-200">
+                <div class="flex items-center justify-between text-sm">
+                    <span class="text-gray-600">Notifications:</span>
+                    <div class="flex space-x-2">
+                        <label class="flex items-center">
+                            <input type="checkbox" {{ 'checked' if entry.notify_on_games else '' }} 
+                                   onchange="updateNotification('{{ entry.id }}', 'games', this.checked)"
+                                   class="h-3 w-3 text-nba-blue">
+                            <span class="ml-1 text-xs">Games</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" {{ 'checked' if entry.notify_on_stats else '' }}
+                                   onchange="updateNotification('{{ entry.id }}', 'stats', this.checked)"
+                                   class="h-3 w-3 text-nba-blue">
+                            <span class="ml-1 text-xs">Stats</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center py-12">
+        <div class="text-6xl mb-4">👀</div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Your Watchlist is Empty</h2>
+        <p class="text-gray-600 mb-6">Add players to track their performance and get notifications</p>
+        <button onclick="openSearchModal()" class="btn-primary">
+            Add Your First Player
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Search Modal -->
+<div id="searchModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Add Player to Watchlist</h3>
+            <button onclick="closeSearchModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <form onsubmit="addToWatchlist(event)">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Search Player</label>
+                <input type="text" id="playerSearch" placeholder="Type player name..." 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nba-blue focus:border-transparent">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                <select id="prioritySelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nba-blue focus:border-transparent">
+                    <option value="3">Medium</option>
+                    <option value="5">Very High</option>
+                    <option value="4">High</option>
+                    <option value="2">Low</option>
+                    <option value="1">Very Low</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                <textarea id="notesInput" rows="3" placeholder="Why are you watching this player?" 
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nba-blue focus:border-transparent"></textarea>
+            </div>
+            
+            <div class="flex space-x-3">
+                <button type="button" onclick="closeSearchModal()" 
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="flex-1 btn-primary">
+                    Add to Watchlist
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openSearchModal() {
+    document.getElementById('searchModal').classList.remove('hidden');
+    document.getElementById('playerSearch').focus();
+}
+
+function closeSearchModal() {
+    document.getElementById('searchModal').classList.add('hidden');
+    // Clear form
+    document.getElementById('playerSearch').value = '';
+    document.getElementById('notesInput').value = '';
+    document.getElementById('prioritySelect').value = '3';
+}
+
+function addToWatchlist(event) {
+    event.preventDefault();
+    // TODO: Implement add to watchlist functionality
+    alert('Add to watchlist functionality will be implemented with the backend!');
+    closeSearchModal();
+}
+
+function removeFromWatchlist(entryId) {
+    if (confirm('Remove this player from your watchlist?')) {
+        // TODO: Implement remove from watchlist
+        alert('Remove from watchlist functionality will be implemented!');
+        // For now, just hide the card
+        event.target.closest('.bg-white').style.display = 'none';
+    }
+}
+
+function updateNotification(entryId, type, enabled) {
+    // TODO: Implement notification update
+    console.log(`Update ${type} notification for ${entryId}: ${enabled}`);
+}
+
+function placeBetModal(playerId) {
+    // TODO: Open betting modal for this player
+    alert('Betting functionality will be available soon!');
+}
+</script>
+{% endblock %}
+
+## Static Files
+
+### backend/app/static/js/app.js
+```javascript
+// Main application JavaScript
+class HoopsTracker {
+    constructor() {
+        this.init();
+    }
+    
+    init() {
+        this.setupEventListeners();
+        this.initializeComponents();
+        console.log('🏀 Hoops Tracker initialized');
+    }
+    
+    setupEventListeners() {
+        // Global event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            this.setupNavigation();
+            this.setupModals();
+            this.setupFormValidation();
+        });
+        
+        // Handle responsive navigation
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', this.toggleMobileMenu);
+        }
+    }
+    
+    setupNavigation() {
+        // Highlight current page in navigation
+        const currentPath = window.location.pathname;
+        const navLinks = document.querySelectorAll('nav a');
+        
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.classList.add('text-yellow-400', 'font-bold');
+            }
+        });
+    }
+    
+    setupModals() {
+        // Close modals when clicking outside
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-backdrop')) {
+                this.closeAllModals();
+            }
+        });
+        
+        // Close modals with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeAllModals();
+            }
+        });
+    }
+    
+    setupFormValidation() {
+        // Add real-time form validation
+        const forms = document.querySelectorAll('form[data-validate="true"]');
+        forms.forEach(form => {
+            form.addEventListener('submit', this.validateForm);
+        });
+    }
+    
+    toggleMobileMenu() {
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (mobileMenu) {
+            mobileMenu.classList.toggle('hidden');
+        }
+    }
+    
+    closeAllModals() {
+        const modals = document.querySelectorAll('.modal, [id$="Modal"]');
+        modals.forEach(modal => {
+            modal.classList.add('hidden');
+        });
+    }
+    
+    validateForm(event) {
+        const form = event.target;
+        const inputs = form.querySelectorAll('input[required], select[required], textarea[required]');
+        let isValid = true;
+        
+        inputs.forEach(input => {
+            if (!input.value.trim()) {
+                isValid = false;
+                input.classList.add('border-red-500');
+                input.classList.remove('border-gray-300');
+            } else {
+                input.classList.remove('border-red-500');
+                input.classList.add('border-gray-300');
+            }
+        });
+        
+        if (!isValid) {
+            event.preventDefault();
+            this.showNotification('Please fill in all required fields', 'error');
+        }
+        
+        return isValid;
+    }
+    
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 transform translate-x-full ${
+            type === 'error' ? 'bg-red-500 text-white' :
+            type === 'success' ? 'bg-green-500 text-white' :
+            type === 'warning' ? 'bg-yellow-500 text-black' :
+            'bg-blue-500 text-white'
+        }`;
+        
+        notification.innerHTML = `
+            <div class="flex items-center justify-between">
+                <span>${message}</span>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-lg">×</button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full');
+        }, 100);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            notification.classList.add('translate-x-full');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 5000);
+    }
+    
+    initializeComponents() {
+        // Initialize any page-specific components
+        this.initializeCharts();
+        this.initializeDataTables();
+        this.initializeDatePickers();
+    }
+    
+    initializeCharts() {
+        // Initialize charts if Chart.js is available
+        if (typeof Chart !== 'undefined') {
+            const chartElements = document.querySelectorAll('[data-chart]');
+            chartElements.forEach(element => {
+                // Chart initialization logic here
+                console.log('Initializing chart:', element.dataset.chart);
+            });
+        }
+    }
+    
+    initializeDataTables() {
+        // Enhanced table functionality
+        const tables = document.querySelectorAll('table[data-sortable="true"]');
+        tables.forEach(table => {
+            this.makeSortable(table);
+        });
+    }
+    
+    makeSortable(table) {
+        const headers = table.querySelectorAll('th[data-sort]');
+        headers.forEach(header => {
+            header.style.cursor = 'pointer';
+            header.addEventListener('click', () => {
+                this.sortTable(table, header.dataset.sort);
+            });
+        });
+    }
+    
+    sortTable(table, column) {
+        // Basic table sorting implementation
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        rows.sort((a, b) => {
+            const aValue = a.children[column].textContent.trim();
+            const bValue = b.children[column].textContent.trim();
+            
+            // Try numeric comparison first
+            if (!isNaN(aValue) && !isNaN(bValue)) {
+                return parseFloat(bValue) - parseFloat(aValue);
+            }
+            
+            // Fall back to string comparison
+            return aValue.localeCompare(bValue);
+        });
+        
+        // Re-append sorted rows
+        rows.forEach(row => tbody.appendChild(row));
+    }
+    
+    initializeDatePickers() {
+        // Initialize date pickers if needed
+        const dateInputs = document.querySelectorAll('input[type="date"]');
+        dateInputs.forEach(input => {
+            // Add any date picker enhancements
+            input.addEventListener('change', (e) => {
+                console.log('Date changed:', e.target.value);
+            });
+        });
+    }
+    
+    // Utility methods
+    formatCurrency(amount) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD'
+        }).format(amount);
+    }
+    
+    formatPercentage(value) {
+        return `${(value * 100).toFixed(1)}%`;
+    }
+    
+    formatDate(date) {
+        return new Intl.DateTimeFormat('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        }).format(new Date(date));
+    }
+    
+    // API helper methods
+    async apiCall(endpoint, options = {}) {
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        };
+        
+        const config = { ...defaultOptions, ...options };
+        
+        try {
+            const response = await fetch(endpoint, config);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('API call failed:', error);
+            this.showNotification('Something went wrong. Please try again.', 'error');
+            throw error;
+        }
+    }
+}
+
+// Initialize the application
+const app = new HoopsTracker();
+
+// Export for global use
+window.HoopsTracker = app;
