@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_key: str
     supabase_anon_key: str
+
     
     # Flask
     flask_secret_key: str

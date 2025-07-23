@@ -4,6 +4,7 @@ Main application entry point.
 """
 
 from flask import Flask, render_template, jsonify
+from flask_caching import Cache
 from flask_cors import CORS
 from app.core.config import settings
 from app.core.logging import logger
@@ -16,15 +17,15 @@ def create_app():
     app = Flask(__name__)
     
     # Configure app
-    app.config['SECRET_KEY'] = settings.secret_key
+    app.config['SECRET_KEY'] = settings.flask_secret_key
     app.config['SESSION_TYPE'] = 'filesystem'
-    app.config['PERMANENT_SESSION_LIFETIME'] = settings.session_lifetime
+    app.config['PERMANENT_SESSION_LIFETIME'] = settings.permanent_session_lifetime
     
     # Initialize CORS
-    CORS(app, origins=settings.cors_origins)
+    CORS(app)
     
     # Initialize cache
-    cache.init_app(app)
+   # cache.init_app(app)
     
     # Register blueprints
     register_blueprints(app)

@@ -11,6 +11,12 @@ class CacheManager:
     def __init__(self):
         self.redis_client = redis.Redis(**REDIS_CACHE_CONFIG)
         self.default_timeout = settings.cache_default_timeout
+    def init_app(self, app):
+        """
+        No‐op init_app so you can call cache.init_app(app)
+        without errors.
+        """
+        return None
         
     def get(self, key: str) -> Optional[Any]:
         """Get value from cache"""

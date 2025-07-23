@@ -63,6 +63,9 @@ class AuthService:
                     'success': False,
                     'error': 'Registration failed. Please try again.'
                 }
+        except Exception as e:
+            logger.error(f"Registration error: {e}")
+            return {'success': False, 'error': 'Registration failed due to server error.'}
     
     def login_user(self, email: str, password: str) -> Dict[str, Any]:
         """Authenticate user and create session."""
