@@ -1,0 +1,18 @@
+# Hoops Tracker Requirements - Latest 2025 Versions
+Flask==3.1.1
+supabase==2.17.0
+nba_api==1.10.0
+Flask-CORS==6.0.1
+python-dotenv==1.0.1
+requests==2.32.3
+numpy==2.1.0
+pandas==2.2.2
+matplotlib==3.9.1
+Pillow==10.4.0
+Flask-Session==0.8.0
+itsdangerous==2.2.0
+Werkzeug==3.0.4
+Jinja2==3.1.4
+click==8.1.7
+python-dateutil==2.9.0
+pytz==2024.1

@@ -1,0 +1,78 @@
+<!-- templates/roster_partials/header.html -->
+<div class="row mb-4">
+    <div class="col-12">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('rosters') }}">My Rosters</a>
+                </li>
+                <li class="breadcrumb-item active">{{ roster.name }}</li>
+            </ol>
+        </nav>
+        
+        <!-- Main Header -->
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+            <div class="mb-3 mb-md-0">
+                <h2><i class="bi bi-list"></i> {{ roster.name }}</h2>
+                
+                {% if roster.description %}
+                <p class="text-muted mb-2">{{ roster.description }}</p>
+                {% endif %}
+                
+                <!-- Meta Information -->
+                <div class="d-flex flex-wrap gap-3 mt-2">
+                    <small class="text-muted">
+                        <i class="bi bi-people"></i> 
+                        {{ roster_players|length }}/15 Players
+                    </small>
+                    <small class="text-muted">
+                        {% if roster.is_public %}
+                            <i class="bi bi-globe text-success"></i> Public
+                        {% else %}
+                            <i class="bi bi-lock text-warning"></i> Private
+                        {% endif %}
+                    </small>
+                    <small class="text-muted">
+                        <i class="bi bi-calendar"></i> 
+                        Created {{ roster.created_at|date if roster.created_at else 'Recently' }}
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#addPlayerModal">
+                    <i class="bi bi-person-plus"></i> Add Player
+                </button>
+                
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" 
+                            data-bs-toggle="dropdown">
+                        <i class="bi bi-three-dots"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="editRoster({{ roster.id }})">
+                                <i class="bi bi-pencil"></i> Edit Details
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="shareRoster({{ roster.id }})">
+                                <i class="bi bi-share"></i> Share Roster
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="#" onclick="deleteRoster({{ roster.id }})">
+                                <i class="bi bi-trash"></i> Delete Roster
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

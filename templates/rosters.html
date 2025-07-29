@@ -1,0 +1,529 @@
+<!-- templates/rosters.html - Complete with Edit/Delete Functionality -->
+{% extends "base.html" %}
+
+{% block title %}My Rosters - Hoops Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+                <div class="mb-3 mb-md-0">
+                    <h2><i class="bi bi-list"></i> My Rosters</h2>
+                    <p class="text-muted">Create and manage your custom NBA rosters</p>
+                </div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRosterModal">
+                    <i class="bi bi-plus-circle"></i> Create Roster
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rosters Grid -->
+    <div class="row">
+        {% for roster in rosters %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">{{ roster.name }}</h6>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('roster_detail', roster_id=roster.id) }}">
+                                <i class="bi bi-eye"></i> View Details
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="editRoster({{ roster.id }}, '{{ roster.name }}', '{{ roster.description or '' }}', {{ 'true' if roster.is_public else 'false' }})">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="shareRoster({{ roster.id }}, '{{ roster.name }}', {{ 'true' if roster.is_public else 'false' }})">
+                                <i class="bi bi-share"></i> Share
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteRoster({{ roster.id }}, '{{ roster.name }}')">
+                                <i class="bi bi-trash"></i> Delete
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if roster.description %}
+                    <p class="text-muted mb-3">{{ roster.description }}</p>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <small class="text-muted">
+                            <i class="bi bi-people"></i> 
+                            {% set player_count = roster.player_count if roster.player_count is defined else 0 %}
+                            {{ player_count }}/15 Players
+                        </small>
+                        <small class="text-muted">
+                            {% if roster.is_public %}
+                                <i class="bi bi-globe text-success"></i> Public
+                            {% else %}
+                                <i class="bi bi-lock text-warning"></i> Private
+                            {% endif %}
+                        </small>
+                    </div>
+                    
+                    <div class="text-center">
+                        <a href="{{ url_for('roster_detail', roster_id=roster.id) }}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-eye"></i> View Roster
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer text-muted">
+                    <small>Created {{ roster.created_at|date if roster.created_at else 'Recently' }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% if not rosters %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="bi bi-list display-1 text-muted"></i>
+                <h4 class="text-muted mt-3">No rosters yet</h4>
+                <p class="text-muted">Create your first roster to get started!</p>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRosterModal">
+                    <i class="bi bi-plus-circle"></i> Create Your First Roster
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Create Roster Modal -->
+<div class="modal fade" id="createRosterModal" 
+     data-bs-focus="false" 
+     data-bs-backdrop="static" 
+     data-bs-keyboard="true" 
+     aria-labelledby="createRosterModalLabel" 
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createRosterModalLabel">Create New Roster</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="rosterName" class="form-label">Roster Name *</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="rosterName" 
+                               placeholder="Enter roster name" 
+                               maxlength="100" 
+                               required
+                               style="font-size: 16px;">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="rosterDescription" class="form-label">Description</label>
+                        <textarea class="form-control" 
+                                  id="rosterDescription" 
+                                  rows="3" 
+                                  placeholder="Optional description" 
+                                  maxlength="500"
+                                  style="font-size: 16px;"></textarea>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="isPublic">
+                        <label class="form-check-label" for="isPublic">
+                            Make this roster public
+                            <br><small class="text-muted">Public rosters can be viewed by other users</small>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="createRosterBtn">
+                    <i class="bi bi-plus-circle"></i> Create Roster
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Roster Modal -->
+<div class="modal fade" id="editRosterModal" tabindex="-1" aria-labelledby="editRosterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editRosterModalLabel">Edit Roster</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editRosterForm">
+                    <div class="mb-3">
+                        <label for="editRosterName" class="form-label">Roster Name *</label>
+                        <input type="text" class="form-control" id="editRosterName" required maxlength="100">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editRosterDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editRosterDescription" rows="3" placeholder="Optional description" maxlength="500"></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="editRosterPublic">
+                        <label class="form-check-label" for="editRosterPublic">
+                            Make this roster public
+                            <br><small class="text-muted">Public rosters can be viewed by other users</small>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveRosterEdits()">
+                    <i class="bi bi-check-circle"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Share Roster Modal -->
+<div class="modal fade" id="shareRosterModal" tabindex="-1" aria-labelledby="shareRosterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareRosterModalLabel">Share Roster</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="rosterShareLink" class="form-label">Share Link</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="rosterShareLink" readonly>
+                        <button class="btn btn-outline-secondary" type="button" onclick="copyShareLink()">
+                            <i class="bi bi-copy"></i> Copy
+                        </button>
+                    </div>
+                    <div class="form-text">Share this link with others to let them view your roster</div>
+                </div>
+                
+                <div id="shareRosterPrivateWarning" class="alert alert-warning" style="display: none;">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>This roster is private.</strong> 
+                    Only you can view it. Make it public in roster settings to share with others.
+                </div>
+                
+                <div class="row">
+                    <div class="col-6">
+                        <button class="btn btn-outline-primary w-100" onclick="shareToTwitter()">
+                            <i class="bi bi-twitter"></i> Twitter
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-primary w-100" onclick="shareToFacebook()">
+                            <i class="bi bi-facebook"></i> Facebook
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteRosterModal" tabindex="-1" aria-labelledby="deleteRosterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteRosterModalLabel">Delete Roster</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <i class="bi bi-exclamation-triangle display-1 text-danger mb-3"></i>
+                    <h4>Are you sure?</h4>
+                    <p class="text-muted">
+                        This will permanently delete "<strong id="deleteRosterName"></strong>" and remove all players from it. 
+                        This action cannot be undone.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteRoster()">
+                    <i class="bi bi-trash"></i> Delete Roster
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentEditingRosterId = null;
+let currentDeletingRosterId = null;
+let currentSharingRosterId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('createRosterModal');
+    const createBtn = document.getElementById('createRosterBtn');
+    
+    // Focus handling
+    modal.addEventListener('shown.bs.modal', function() {
+        const nameInput = document.getElementById('rosterName');
+        setTimeout(() => {
+            nameInput.focus();
+            nameInput.select();
+        }, 150);
+    });
+    
+    // Form reset on modal hide
+    modal.addEventListener('hidden.bs.modal', function() {
+        document.getElementById('rosterName').value = '';
+        document.getElementById('rosterDescription').value = '';
+        document.getElementById('isPublic').checked = false;
+    });
+    
+    // Enter key handling
+    document.getElementById('rosterName').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            createRoster();
+        }
+    });
+    
+    // Create button handler
+    createBtn.addEventListener('click', createRoster);
+});
+
+async function createRoster() {
+    const nameInput = document.getElementById('rosterName');
+    const descInput = document.getElementById('rosterDescription');
+    const publicCheck = document.getElementById('isPublic');
+    const createBtn = document.getElementById('createRosterBtn');
+    
+    const name = nameInput.value.trim();
+    const description = descInput.value.trim();
+    const isPublic = publicCheck.checked;
+    
+    // Validation
+    if (!name) {
+        showToast('Roster name is required', 'warning');
+        nameInput.focus();
+        return;
+    }
+    
+    if (name.length < 2) {
+        showToast('Roster name must be at least 2 characters', 'warning');
+        nameInput.focus();
+        return;
+    }
+    
+    // Show loading
+    const originalText = createBtn.innerHTML;
+    createBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
+    createBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/rosters', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                description: description,
+                is_public: isPublic
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('Roster created successfully!', 'success');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createRosterModal'));
+            modal.hide();
+            
+            // Reload page
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            throw new Error(result.error || 'Failed to create roster');
+        }
+        
+    } catch (error) {
+        console.error('Error creating roster:', error);
+        showToast('Error: ' + error.message, 'danger');
+    } finally {
+        // Restore button
+        createBtn.innerHTML = originalText;
+        createBtn.disabled = false;
+    }
+}
+
+function editRoster(rosterId, name, description, isPublic) {
+    currentEditingRosterId = rosterId;
+    
+    // Populate form
+    document.getElementById('editRosterName').value = name;
+    document.getElementById('editRosterDescription').value = description;
+    document.getElementById('editRosterPublic').checked = isPublic;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('editRosterModal'));
+    modal.show();
+}
+
+async function saveRosterEdits() {
+    const name = document.getElementById('editRosterName').value.trim();
+    const description = document.getElementById('editRosterDescription').value.trim();
+    const isPublic = document.getElementById('editRosterPublic').checked;
+    
+    if (!name) {
+        showToast('Roster name is required', 'warning');
+        return;
+    }
+    
+    if (!currentEditingRosterId) {
+        showToast('Error: No roster selected for editing', 'danger');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/rosters/${currentEditingRosterId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                description: description,
+                is_public: isPublic
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('Roster updated successfully!', 'success');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editRosterModal'));
+            modal.hide();
+            
+            // Reload page
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            throw new Error(result.error || 'Failed to update roster');
+        }
+        
+    } catch (error) {
+        console.error('Error updating roster:', error);
+        showToast('Error: ' + error.message, 'danger');
+    }
+}
+
+function shareRoster(rosterId, name, isPublic) {
+    currentSharingRosterId = rosterId;
+    
+    // Set share link
+    const shareUrl = `${window.location.origin}/roster/${rosterId}`;
+    document.getElementById('rosterShareLink').value = shareUrl;
+    
+    // Show/hide private warning
+    const warning = document.getElementById('shareRosterPrivateWarning');
+    if (isPublic) {
+        warning.style.display = 'none';
+    } else {
+        warning.style.display = 'block';
+    }
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('shareRosterModal'));
+    modal.show();
+}
+
+function copyShareLink() {
+    const shareLink = document.getElementById('rosterShareLink');
+    shareLink.select();
+    shareLink.setSelectionRange(0, 99999);
+    
+    try {
+        document.execCommand('copy');
+        showToast('Link copied to clipboard!', 'success');
+    } catch (err) {
+        console.error('Failed to copy link:', err);
+        showToast('Failed to copy link', 'danger');
+    }
+}
+
+function shareToTwitter() {
+    const shareLink = document.getElementById('rosterShareLink').value;
+    const text = 'Check out my NBA roster!';
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareLink)}`;
+    window.open(twitterUrl, '_blank', 'width=600,height=400');
+}
+
+function shareToFacebook() {
+    const shareLink = document.getElementById('rosterShareLink').value;
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`;
+    window.open(facebookUrl, '_blank', 'width=600,height=400');
+}
+
+function deleteRoster(rosterId, name) {
+    currentDeletingRosterId = rosterId;
+    
+    // Set roster name in confirmation
+    document.getElementById('deleteRosterName').textContent = name;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('deleteRosterModal'));
+    modal.show();
+}
+
+async function confirmDeleteRoster() {
+    if (!currentDeletingRosterId) {
+        showToast('Error: No roster selected for deletion', 'danger');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/rosters/${currentDeletingRosterId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('Roster deleted successfully', 'success');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteRosterModal'));
+            modal.hide();
+            
+            // Reload page
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            throw new Error(result.error || 'Failed to delete roster');
+        }
+        
+    } catch (error) {
+        console.error('Error deleting roster:', error);
+        showToast('Error: ' + error.message, 'danger');
+    }
+}
+
+function showToast(message, type = 'info') {
+    if (typeof HoopsTracker !== 'undefined') {
+        HoopsTracker.showToast(message, type);
+    } else {
+        // Fallback toast implementation
+        alert(`${type.toUpperCase()}: ${message}`);
+    }
+}
+</script>
+{% endblock %}

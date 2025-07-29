@@ -1,0 +1,303 @@
+<!-- templates/dashboard.html - Fixed Data Loading and Sizing -->
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Hoops Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="bi bi-speedometer2"></i> Welcome back, {{ user.username or user.email.split('@')[0] }}!</h2>
+            <p class="text-muted">Your personal NBA dashboard</p>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-number" id="favorites-count">{{ favorites|length }}</div>
+                    <div class="stat-label">Favorites</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-number" id="rosters-count">-</div>
+                    <div class="stat-label">My Rosters</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-number" id="games-today">-</div>
+                    <div class="stat-label">Games Today</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card">
+                <div class="card-body text-center">
+                    <div class="stat-number">{{ user.role|title }}</div>
+                    <div class="stat-label">Account Type</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row">
+        <!-- Recent Games -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-calendar3"></i> Recent Games</h5>
+                    <a href="{{ url_for('standings') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    <div id="recent-games-container">
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted mb-0">Loading recent games...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+		<!-- My Favorites -->
+		<div class="col-lg-4 mb-4">
+			<div class="card">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<h5 class="mb-0"><i class="bi bi-heart"></i> My Favorites</h5>
+					<a href="{{ url_for('players') }}" class="btn btn-sm btn-outline-primary">Browse</a>
+				</div>
+				<div class="card-body">
+					{% if favorites %}
+						{% for favorite in favorites[:5] %}
+						<div class="d-flex align-items-center mb-2">
+							<i class="bi bi-{{ 'person' if favorite.type == 'player' else 'shield' }} me-2 text-primary"></i>
+							<div class="flex-grow-1">
+								<div class="fw-bold">{{ favorite.name }}</div>
+								{% if favorite.team %}
+								<small class="text-muted">{{ favorite.team }}</small>
+								{% elif favorite.abbreviation %}
+								<small class="text-muted">{{ favorite.abbreviation }}</small>
+								{% endif %}
+							</div>
+						</div>
+						{% endfor %}
+						{% if favorites|length > 5 %}
+						<small class="text-muted">and {{ favorites|length - 5 }} more...</small>
+						{% endif %}
+					{% else %}
+						<div class="text-center py-3 text-muted">
+							<i class="bi bi-heart display-4"></i>
+							<p class="mt-2 mb-0">No favorites yet</p>
+							<small>Add players and teams to your favorites</small>
+						</div>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('players') }}" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-people"></i><br>
+                                Browse Players
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('teams') }}" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-shield"></i><br>
+                                View Teams
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('rosters') }}" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-list-task"></i><br>
+                                My Rosters
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('standings') }}" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-trophy"></i><br>
+                                Standings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Consistent stat card sizing */
+.stat-card {
+    height: 120px;
+    border: 1px solid #dee2e6;
+}
+
+.stat-card .card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* Consistent game card sizing */
+.game-item {
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    background: white;
+}
+
+.game-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Quick action buttons */
+.btn.w-100 {
+    padding: 1rem;
+    height: auto;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn.w-100 i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .stat-number {
+        font-size: 1.5rem;
+    }
+    
+    .btn.w-100 {
+        min-height: 60px;
+        padding: 0.75rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+});
+
+async function loadDashboardData() {
+    // Load roster count
+    try {
+        const rosterResponse = await fetch('/api/rosters');
+        if (rosterResponse.ok) {
+            const rosterResult = await rosterResponse.json();
+            if (rosterResult.success) {
+                document.getElementById('rosters-count').textContent = rosterResult.data.length;
+            }
+        }
+    } catch (error) {
+        console.log('Could not load rosters count');
+        document.getElementById('rosters-count').textContent = '0';
+    }
+
+    // Load games today (simplified - just show recent games count)
+    try {
+        const gamesResponse = await fetch('/api/games?limit=10');
+        if (gamesResponse.ok) {
+            const gamesResult = await gamesResponse.json();
+            if (gamesResult.success) {
+                // For now, just show total recent games
+                document.getElementById('games-today').textContent = gamesResult.data.length;
+                displayRecentGames(gamesResult.data.slice(0, 5));
+            }
+        }
+    } catch (error) {
+        console.log('Could not load games');
+        document.getElementById('games-today').textContent = '0';
+        showNoGames();
+    }
+}
+
+function displayRecentGames(games) {
+    const container = document.getElementById('recent-games-container');
+    
+    if (!games || games.length === 0) {
+        showNoGames();
+        return;
+    }
+    
+    const gamesHtml = games.map(game => `
+        <div class="game-item">
+            <div class="row align-items-center">
+                <div class="col-sm-6">
+                    <div class="fw-bold">
+                        ${game.away_team?.abbreviation || 'TBD'} @ ${game.home_team?.abbreviation || 'TBD'}
+                    </div>
+                </div>
+                <div class="col-sm-3 text-center">
+                    <span class="badge bg-primary">
+                        ${game.away_score || 0} - ${game.home_score || 0}
+                    </span>
+                </div>
+                <div class="col-sm-3 text-end">
+                    <small class="text-muted">
+                        ${game.game_date ? new Date(game.game_date).toLocaleDateString() : 'TBD'}
+                    </small>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = gamesHtml;
+}
+
+function showNoGames() {
+    document.getElementById('recent-games-container').innerHTML = `
+        <div class="text-center py-3 text-muted">
+            <i class="bi bi-calendar-x display-4"></i>
+            <p class="mt-2 mb-0">No recent games available</p>
+        </div>
+    `;
+}
+</script>
+{% endblock %}

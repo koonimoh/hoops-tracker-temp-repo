@@ -1,0 +1,777 @@
+<!-- templates/standings.html - Enhanced with Real Data Calculation -->
+{% extends "base.html" %}
+
+{% block title %}NBA Standings - Hoops Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="bi bi-trophy"></i> NBA Standings</h2>
+                    <p class="text-muted">Current season standings by conference</p>
+                </div>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary active" onclick="showConference('both')">
+                        Both Conferences
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="showConference('eastern')">
+                        Eastern
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="showConference('western')">
+                        Western
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="standings-loading" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3 text-muted">Loading standings data...</p>
+    </div>
+
+    <!-- Standings Content -->
+    <div id="standings-content" style="display: none;">
+        <!-- Eastern Conference -->
+        <div id="eastern-conference" class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-trophy"></i> Eastern Conference
+                            <span class="float-end" id="eastern-last-updated"></span>
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="50">#</th>
+                                        <th>Team</th>
+                                        <th width="70" class="text-center">W</th>
+                                        <th width="70" class="text-center">L</th>
+                                        <th width="80" class="text-center">PCT</th>
+                                        <th width="80" class="text-center">GB</th>
+                                        <th width="120" class="text-center d-none d-md-table-cell">L10</th>
+                                        <th width="100" class="text-center d-none d-lg-table-cell">STRK</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="eastern-standings-body">
+                                    <!-- Populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Western Conference -->
+        <div id="western-conference" class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-trophy"></i> Western Conference
+                            <span class="float-end" id="western-last-updated"></span>
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="50">#</th>
+                                        <th>Team</th>
+                                        <th width="70" class="text-center">W</th>
+                                        <th width="70" class="text-center">L</th>
+                                        <th width="80" class="text-center">PCT</th>
+                                        <th width="80" class="text-center">GB</th>
+                                        <th width="120" class="text-center d-none d-md-table-cell">L10</th>
+                                        <th width="100" class="text-center d-none d-lg-table-cell">STRK</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="western-standings-body">
+                                    <!-- Populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="standings-error" style="display: none;" class="text-center py-5">
+        <i class="bi bi-exclamation-triangle display-1 text-warning"></i>
+        <h4 class="mt-3">Unable to Load Standings</h4>
+        <p class="text-muted">There was an error loading the standings data. This might be because:</p>
+        <ul class="list-unstyled">
+            <li>• Game data hasn't been synced yet</li>
+            <li>• Teams are missing conference information</li>
+            <li>• Database connection issues</li>
+        </ul>
+        {% if current_user and current_user.role == 'admin' %}
+        <div class="mt-4">
+            <a href="{{ url_for('admin') }}" class="btn btn-primary me-2">
+                <i class="bi bi-gear"></i> Go to Admin Panel
+            </a>
+            <button class="btn btn-outline-primary" onclick="retryLoadStandings()">
+                <i class="bi bi-arrow-clockwise"></i> Retry Loading
+            </button>
+        </div>
+        {% else %}
+        <button class="btn btn-outline-primary" onclick="retryLoadStandings()">
+            <i class="bi bi-arrow-clockwise"></i> Retry Loading
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Playoff Legend -->
+    <div id="playoff-legend" style="display: none;" class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6><i class="bi bi-info-circle"></i> Playoff Picture</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="playoff-indicator playoff-seed me-2"></div>
+                                <small>Playoff Seed (1-6)</small>
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="playoff-indicator play-in me-2"></div>
+                                <small>Play-in Tournament (7-10)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="playoff-indicator eliminated me-2"></div>
+                                <small>Eliminated from Playoffs</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Enhanced standings styling */
+.standings-row {
+    transition: background-color 0.2s ease;
+}
+
+.standings-row:hover {
+    background-color: rgba(0,0,0,0.02);
+}
+
+.team-logo-standings {
+    width: 25px;
+    height: 25px;
+    object-fit: contain;
+    margin-right: 8px;
+}
+
+.team-name-cell {
+    font-weight: 500;
+}
+
+.team-name-cell a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.team-name-cell a:hover {
+    color: var(--primary-color);
+}
+
+/* Playoff indicators */
+.playoff-indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+.playoff-seed {
+    background-color: #28a745;
+}
+
+.play-in {
+    background-color: #ffc107;
+}
+
+.eliminated {
+    background-color: #dc3545;
+}
+
+/* Record indicators */
+.wins-cell {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.losses-cell {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.pct-cell {
+    font-weight: 600;
+}
+
+.gb-cell {
+    font-style: italic;
+    color: #6c757d;
+}
+
+/* Streak indicators */
+.streak-win {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.streak-loss {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* Last 10 games styling */
+.last-ten {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+}
+
+/* Conference filter buttons */
+.btn-group .btn {
+    min-width: 120px;
+}
+
+/* Combined standings styling */
+#combined-standings {
+    display: none;
+}
+
+.top-tier {
+    background-color: rgba(40, 167, 69, 0.05);
+}
+
+.mid-tier {
+    background-color: rgba(255, 193, 7, 0.05);
+}
+
+.bottom-tier {
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+/* Conference badges */
+.badge.bg-primary {
+    background-color: #0d6efd !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+/* Enhanced playoff indicators for combined view */
+.standings-row.top-tier .team-name-cell a {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.standings-row.bottom-tier .team-name-cell a {
+    color: #dc3545;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .team-logo-standings {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .team-name-cell {
+        font-size: 0.9rem;
+    }
+    
+    .playoff-legend {
+        font-size: 0.8rem;
+    }
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.loading-row {
+    animation: pulse 1.5s infinite;
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let standingsData = { eastern: [], western: [] };
+let currentView = 'both';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadStandings();
+});
+
+// Add the logo helper functions
+function getTeamLogoUrl(nbaTeamId) {
+    if (!nbaTeamId) {
+        return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iNCIgZmlsbD0iIzMzMzMzMyIvPgo8dGV4dCB4PSIyMCIgeT0iMjIiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk5CQTwvdGV4dD4KPHN2Zz4K';
+    }
+    return `https://cdn.nba.com/logos/nba/${nbaTeamId}/primary/L/logo.svg`;
+}
+
+function handleImageError(img) {
+    img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iNCIgZmlsbD0iIzMzMzMzMyIvPgo8dGV4dCB4PSIyMCIgeT0iMjIiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk5CQTwvdGV4dD4KPHN2Zz4K';
+    img.onerror = null; // Prevent infinite loop
+}
+
+async function loadStandings() {
+    showLoadingState();
+    
+    try {
+        console.log('Loading standings data...');
+        
+        // Load teams with their records
+        const response = await fetch('/api/teams');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('API response:', result);
+        
+        if (!result.success || !result.data) {
+            throw new Error(result.error || 'No teams data received');
+        }
+        
+        const teams = result.data;
+        
+        if (teams.length === 0) {
+            throw new Error('No teams found in database');
+        }
+        
+        console.log(`Loaded ${teams.length} teams`);
+        
+        // Separate teams by conference
+        const easternTeams = teams.filter(team => 
+            team.conference && team.conference.toLowerCase().includes('east')
+        );
+        const westernTeams = teams.filter(team => 
+            team.conference && team.conference.toLowerCase().includes('west')
+        );
+        
+        // Handle teams without conference data
+        const unknownTeams = teams.filter(team => 
+            !team.conference || 
+            (!team.conference.toLowerCase().includes('east') && 
+             !team.conference.toLowerCase().includes('west'))
+        );
+        
+        if (unknownTeams.length > 0) {
+            console.warn(`${unknownTeams.length} teams missing conference data:`, 
+                        unknownTeams.map(t => t.name));
+            
+            // Distribute unknown teams (basic fallback)
+            unknownTeams.forEach((team, index) => {
+                if (index % 2 === 0) {
+                    easternTeams.push(team);
+                } else {
+                    westernTeams.push(team);
+                }
+            });
+        }
+        
+        // Sort teams by win percentage (descending), then by wins (descending)
+        const sortTeams = (teams) => {
+            return teams.sort((a, b) => {
+                const aWinPct = a.win_percentage || 0;
+                const bWinPct = b.win_percentage || 0;
+                
+                if (Math.abs(aWinPct - bWinPct) < 0.001) {
+                    return (b.wins || 0) - (a.wins || 0); // If same percentage, sort by wins
+                }
+                return bWinPct - aWinPct;
+            });
+        };
+        
+        standingsData.eastern = sortTeams(easternTeams);
+        standingsData.western = sortTeams(westernTeams);
+        
+        console.log(`Eastern: ${standingsData.eastern.length}, Western: ${standingsData.western.length}`);
+        
+        // Calculate games behind for each conference
+        calculateGamesBehind(standingsData.eastern);
+        calculateGamesBehind(standingsData.western);
+        
+        displayStandings();
+        showContentState();
+        
+        // Show playoff legend if we have enough teams
+        if (standingsData.eastern.length >= 10 || standingsData.western.length >= 10) {
+            document.getElementById('playoff-legend').style.display = 'block';
+        }
+        
+    } catch (error) {
+        console.error('Error loading standings:', error);
+        showErrorState(error.message);
+    }
+}
+
+function calculateGamesBehind(teams) {
+    if (teams.length === 0) return;
+    
+    const leader = teams[0];
+    const leaderWins = leader.wins || 0;
+    const leaderLosses = leader.losses || 0;
+    
+    teams.forEach(team => {
+        if (team === leader) {
+            team.games_behind = 0;
+        } else {
+            const teamWins = team.wins || 0;
+            const teamLosses = team.losses || 0;
+            // GB = ((Leader Wins - Team Wins) + (Team Losses - Leader Losses)) / 2
+            const gb = ((leaderWins - teamWins) + (teamLosses - leaderLosses)) / 2;
+            team.games_behind = Math.max(0, gb);
+        }
+    });
+}
+
+function displayStandings() {
+    displayConferenceStandings('eastern', standingsData.eastern);
+    displayConferenceStandings('western', standingsData.western);
+    
+    // If currently showing combined view, update it
+    if (currentView === 'both') {
+        displayCombinedStandings();
+    }
+    
+    // Update last updated times
+    const now = new Date().toLocaleString();
+    document.getElementById('eastern-last-updated').textContent = `Updated: ${now}`;
+    document.getElementById('western-last-updated').textContent = `Updated: ${now}`;
+}
+
+function displayConferenceStandings(conference, teams) {
+    const tbody = document.getElementById(`${conference}-standings-body`);
+    
+    if (!tbody) {
+        console.error(`Could not find standings body for ${conference}`);
+        return;
+    }
+    
+    if (teams.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox display-4"></i>
+                    <p class="mt-2 mb-0">No teams found for ${conference} conference</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = teams.map((team, index) => {
+        const rank = index + 1;
+        const playoffStatus = getPlayoffStatus(rank);
+        const logoUrl = getTeamLogoUrl(team.nba_team_id);
+        
+        // Generate last 10 and streak (simplified for now)
+        const lastTen = team.last_ten || '0-0';
+        const streak = team.streak || '-';
+        
+        return `
+            <tr class="standings-row ${playoffStatus.class}">
+                <td class="text-center">
+                    <span class="playoff-indicator ${playoffStatus.indicator}"></span>
+                    <strong>${rank}</strong>
+                </td>
+                <td class="team-name-cell">
+                    <div class="d-flex align-items-center">
+                        <img src="${logoUrl}" 
+                             class="team-logo-standings" 
+                             alt="${team.name} logo"
+                             onerror="handleImageError(this)">
+                        <div>
+                            <a href="/team/${team.id}">
+                                <strong>${team.city || ''} ${team.name}</strong>
+                            </a>
+                            <br>
+                            <small class="text-muted">${team.abbreviation || ''}</small>
+                        </div>
+                    </div>
+                </td>
+                <td class="text-center wins-cell">${team.wins || 0}</td>
+                <td class="text-center losses-cell">${team.losses || 0}</td>
+                <td class="text-center pct-cell">${(team.win_percentage || 0).toFixed(3)}</td>
+                <td class="text-center gb-cell">
+                    ${(team.games_behind || 0) === 0 ? '-' : (team.games_behind || 0).toFixed(1)}
+                </td>
+                <td class="text-center last-ten d-none d-md-table-cell">${lastTen}</td>
+                <td class="text-center d-none d-lg-table-cell">
+                    <span class="${getStreakClass(streak)}">${streak}</span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function getPlayoffStatus(rank) {
+    if (rank <= 6) {
+        return { class: 'playoff-seed-row', indicator: 'playoff-seed' };
+    } else if (rank <= 10) {
+        return { class: 'play-in-row', indicator: 'play-in' };
+    } else {
+        return { class: 'eliminated-row', indicator: 'eliminated' };
+    }
+}
+
+function getStreakClass(streak) {
+    if (streak.startsWith('W')) {
+        return 'streak-win';
+    } else if (streak.startsWith('L')) {
+        return 'streak-loss';
+    }
+    return '';
+}
+
+
+function showConference(conference) {
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    
+    const easternDiv = document.getElementById('eastern-conference');
+    const westernDiv = document.getElementById('western-conference');
+    const combinedDiv = document.getElementById('combined-standings');
+    
+    // Hide combined standings if it exists
+    if (combinedDiv) {
+        combinedDiv.style.display = 'none';
+    }
+    
+    switch (conference) {
+        case 'eastern':
+            easternDiv.style.display = 'block';
+            westernDiv.style.display = 'none';
+            buttons[1].classList.add('active');
+            break;
+        case 'western':
+            easternDiv.style.display = 'none';
+            westernDiv.style.display = 'block';
+            buttons[2].classList.add('active');
+            break;
+        default: // 'both' - combined rankings
+            easternDiv.style.display = 'none';
+            westernDiv.style.display = 'none';
+            displayCombinedStandings();
+            buttons[0].classList.add('active');
+            break;
+    }
+    
+    currentView = conference;
+}
+
+// ADD these new functions to your existing script:
+function displayCombinedStandings() {
+    let combinedDiv = document.getElementById('combined-standings');
+    if (!combinedDiv) {
+        combinedDiv = document.createElement('div');
+        combinedDiv.id = 'combined-standings';
+        combinedDiv.className = 'row mb-4';
+        combinedDiv.innerHTML = `
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-trophy"></i> NBA Overall Standings
+                            <span class="float-end" id="combined-last-updated"></span>
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="50">#</th>
+                                        <th>Team</th>
+                                        <th width="80" class="text-center">CONF</th>
+                                        <th width="70" class="text-center">W</th>
+                                        <th width="70" class="text-center">L</th>
+                                        <th width="80" class="text-center">PCT</th>
+                                        <th width="80" class="text-center">GB</th>
+                                        <th width="120" class="text-center d-none d-md-table-cell">L10</th>
+                                        <th width="100" class="text-center d-none d-lg-table-cell">STRK</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="combined-standings-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const standingsContent = document.getElementById('standings-content');
+        const easternDiv = document.getElementById('eastern-conference');
+        standingsContent.insertBefore(combinedDiv, easternDiv);
+    }
+    
+    // Combine and sort teams
+    const allTeams = [...standingsData.eastern, ...standingsData.western];
+    const sortedTeams = allTeams.sort((a, b) => {
+        const aWinPct = a.win_percentage || 0;
+        const bWinPct = b.win_percentage || 0;
+        
+        if (Math.abs(aWinPct - bWinPct) < 0.001) {
+            return (b.wins || 0) - (a.wins || 0);
+        }
+        return bWinPct - aWinPct;
+    });
+    
+    calculateGamesBehind(sortedTeams);
+    displayCombinedStandingsTable(sortedTeams);
+    
+    const now = new Date().toLocaleString();
+    const combinedUpdated = document.getElementById('combined-last-updated');
+    if (combinedUpdated) {
+        combinedUpdated.textContent = `Updated: ${now}`;
+    }
+    
+    combinedDiv.style.display = 'block';
+}
+
+function displayCombinedStandingsTable(teams) {
+    const tbody = document.getElementById('combined-standings-body');
+    
+    if (!tbody) {
+        console.error('Could not find combined standings body');
+        return;
+    }
+    
+    if (teams.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox display-4"></i>
+                    <p class="mt-2 mb-0">No teams found</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = teams.map((team, index) => {
+        const rank = index + 1;
+        const logoUrl = getTeamLogoUrl(team.nba_team_id);
+        const conference = getConferenceInfo(team);
+        
+        const lastTen = team.last_ten || '0-0';
+        const streak = team.streak || '-';
+        
+        return `
+            <tr class="standings-row">
+                <td class="text-center">
+                    <strong>${rank}</strong>
+                </td>
+                <td class="team-name-cell">
+                    <div class="d-flex align-items-center">
+                        <img src="${logoUrl}" 
+                             class="team-logo-standings" 
+                             alt="${team.name} logo"
+                             onerror="handleImageError(this)">
+                        <div>
+                            <a href="/team/${team.id}">
+                                <strong>${team.city || ''} ${team.name}</strong>
+                            </a>
+                            <br>
+                            <small class="text-muted">${team.abbreviation || ''}</small>
+                        </div>
+                    </div>
+                </td>
+                <td class="text-center">
+                    <span class="badge ${conference.badgeClass}">${conference.abbr}</span>
+                </td>
+                <td class="text-center wins-cell">${team.wins || 0}</td>
+                <td class="text-center losses-cell">${team.losses || 0}</td>
+                <td class="text-center pct-cell">${(team.win_percentage || 0).toFixed(3)}</td>
+                <td class="text-center gb-cell">
+                    ${(team.games_behind || 0) === 0 ? '-' : (team.games_behind || 0).toFixed(1)}
+                </td>
+                <td class="text-center last-ten d-none d-md-table-cell">${lastTen}</td>
+                <td class="text-center d-none d-lg-table-cell">
+                    <span class="${getStreakClass(streak)}">${streak}</span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function getConferenceInfo(team) {
+    if (team.conference && team.conference.toLowerCase().includes('east')) {
+        return { abbr: 'E', badgeClass: 'bg-primary' };
+    } else if (team.conference && team.conference.toLowerCase().includes('west')) {
+        return { abbr: 'W', badgeClass: 'bg-danger' };
+    } else {
+        return { abbr: '?', badgeClass: 'bg-secondary' };
+    }
+}
+
+function showLoadingState() {
+    document.getElementById('standings-loading').style.display = 'block';
+    document.getElementById('standings-content').style.display = 'none';
+    document.getElementById('standings-error').style.display = 'none';
+}
+
+function showContentState() {
+    document.getElementById('standings-loading').style.display = 'none';
+    document.getElementById('standings-content').style.display = 'block';
+    document.getElementById('standings-error').style.display = 'none';
+}
+
+function showErrorState(errorMessage) {
+    document.getElementById('standings-loading').style.display = 'none';
+    document.getElementById('standings-content').style.display = 'none';
+    document.getElementById('standings-error').style.display = 'block';
+    
+    console.error('Standings error:', errorMessage);
+}
+
+function retryLoadStandings() {
+    loadStandings();
+}
+
+// Auto-refresh standings every 5 minutes
+setInterval(() => {
+    if (document.visibilityState === 'visible') {
+        loadStandings();
+    }
+}, 5 * 60 * 1000);
+</script>
+{% endblock %}

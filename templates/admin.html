@@ -1,0 +1,888 @@
+<!-- templates/admin.html - Enhanced with Shot Chart Support -->
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Hoops Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="bi bi-gear"></i> Admin Dashboard</h2>
+            <p class="text-muted">Manage NBA data synchronization and system settings</p>
+        </div>
+    </div>
+
+    <!-- System Stats -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4>System Statistics</h4>
+        </div>
+        
+        <div class="col-md-3 col-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value" id="teams-stat">{{ teams_count or 0 }}</div>
+                <div class="stat-label">Teams</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value" id="players-stat">{{ players_count or 0 }}</div>
+                <div class="stat-label">Active Players</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value" id="games-stat">{{ games_count or 0 }}</div>
+                <div class="stat-label">Games</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value" id="users-stat">{{ users_count or 0 }}</div>
+                <div class="stat-label">Users</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Synchronization -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="bi bi-arrow-repeat"></i> Data Synchronization</h5>
+                    <button class="btn btn-danger btn-sm" id="stopSyncBtn" onclick="stopSync()" style="display: none;">
+                        <i class="bi bi-stop-circle"></i> Stop Sync
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <button class="btn btn-primary w-100" onclick="syncData('teams')" id="sync-teams">
+                                <i class="bi bi-people"></i> Sync Teams
+                            </button>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <button class="btn btn-primary w-100" onclick="syncData('players')" id="sync-players">
+                                <i class="bi bi-person"></i> Sync Players
+                            </button>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <button class="btn btn-primary w-100" onclick="syncData('games')" id="sync-games">
+                                <i class="bi bi-calendar"></i> Sync Recent Games
+                            </button>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <button class="btn btn-primary w-100" onclick="syncData('player_stats')" id="sync-stats">
+                                <i class="bi bi-graph-up"></i> Sync Player Stats
+                            </button>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="border-top pt-3">
+                                <button class="btn btn-success w-100" onclick="syncData('all')" id="sync-all">
+                                    <i class="bi bi-arrow-clockwise"></i> Sync All Data (Teams + Players + Games + Stats)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="mt-3" id="progress-container" style="display: none;">
+                        <div class="progress mb-2">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 id="progress-bar" 
+                                 role="progressbar" 
+                                 style="width: 0%" 
+                                 aria-valuenow="0" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <small id="progress-text">Starting sync...</small>
+                            <small id="progress-percent">0%</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sync Status -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="bi bi-list-task"></i> Sync Status</h5>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="refreshStats()" id="refresh-stats-btn">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh Stats
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="sync-status">
+                        <p class="text-muted">Ready to sync data</p>
+                    </div>
+                    
+                    <!-- Sync Results -->
+                    <div id="sync-results" style="display: none;">
+                        <h6>Last Sync Results:</h6>
+                        <div id="results-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shot Chart Synchronization -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-target"></i> Shot Chart Data Sync</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Warning:</strong> Shot chart synchronization is resource-intensive and may take several minutes. 
+                        Ensure teams, players, and games are synced first.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Sync Shot Charts for Specific Players</h6>
+                            <p class="text-muted">Sync shot chart data for specific players by their internal IDs.</p>
+                            
+                            <div class="mb-3">
+                                <label for="shotPlayerIds" class="form-label">Player IDs (comma-separated)</label>
+                                <input type="text" class="form-control" id="shotPlayerIds" 
+                                       placeholder="e.g., 1,5,12,25">
+                                <small class="form-text text-muted">Leave empty to sync for top 5 active players</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="shotSeason" class="form-label">Season</label>
+                                <select class="form-control" id="shotSeason">
+                                    <option value="2024-25" selected>2024-25</option>
+                                    <option value="2023-24">2023-24</option>
+                                    <option value="2022-23">2022-23</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="maxShots" class="form-label">Max Shots per Player</label>
+                                <input type="number" class="form-control" id="maxShots" value="500" min="50" max="2000">
+                            </div>
+                            
+                            <button class="btn btn-warning" onclick="syncShotCharts()" id="sync-shot-charts">
+                                <i class="bi bi-target"></i> Sync Shot Charts
+                            </button>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>Full Sync with Shot Charts</h6>
+                            <p class="text-muted">Complete sync including shot charts for top players.</p>
+                            
+                            <div class="mb-3">
+                                <label for="maxPlayersShots" class="form-label">Max Players for Shot Charts</label>
+                                <input type="number" class="form-control" id="maxPlayersShots" value="5" min="1" max="15">
+                                <small class="form-text text-muted">Recommended: 5-10 players max</small>
+                            </div>
+                            
+                            <button class="btn btn-danger mb-3" onclick="syncAllWithShots()" id="sync-all-shots">
+                                <i class="bi bi-arrow-clockwise"></i> Sync All + Shot Charts
+                            </button>
+                            
+                            <!-- Debug Section -->
+                            <hr>
+                            <h6>Debug Shot Charts</h6>
+                            <div class="mb-3">
+                                <label for="debugPlayerId" class="form-label">Player ID to Debug</label>
+                                <input type="number" class="form-control" id="debugPlayerId" placeholder="Enter internal player ID">
+                            </div>
+                            <div class="btn-group w-100" role="group">
+                                <button class="btn btn-info btn-sm" onclick="debugShotChart()">
+                                    <i class="bi bi-bug"></i> Debug
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="testSinglePlayerShots()">
+                                    <i class="bi bi-play"></i> Test Sync
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Last Sync Info -->
+    {% if last_sync %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-info-circle"></i> Last Sync Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Type:</strong> {{ last_sync.sync_type }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Status:</strong> 
+                            <span class="badge bg-{{ 'success' if last_sync.status == 'completed' else 'danger' }}">
+                                {{ last_sync.status }}
+                            </span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Records:</strong> {{ last_sync.records_processed or 0 }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Started:</strong> {{ last_sync.started_at }}
+                        </div>
+                    </div>
+                    {% if last_sync.error_message %}
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <strong>Error:</strong> 
+                            <span class="text-danger">{{ last_sync.error_message }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.stat-card {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #0d6efd;
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#sync-status {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.progress-bar-animated {
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+    0% { background-position: 1rem 0; }
+    100% { background-position: 0 0; }
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentSyncType = null;
+let syncInProgress = false;
+let syncStopped = false;
+let progressInterval = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh stats every 30 seconds
+    setInterval(loadStats, 30000);
+});
+
+async function loadStats() {
+    // Internal function to refresh stats without user interaction
+    try {
+        const response = await fetch('/admin/refresh-stats');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById('teams-stat').textContent = data.teams_count || 0;
+                document.getElementById('players-stat').textContent = data.players_count || 0;
+                document.getElementById('games-stat').textContent = data.games_count || 0;
+                document.getElementById('users-stat').textContent = data.users_count || 0;
+            }
+        }
+    } catch (error) {
+        console.log('Auto stats refresh failed:', error);
+    }
+}
+
+async function refreshStats() {
+    // User-triggered stats refresh with UI feedback
+    const button = document.getElementById('refresh-stats-btn');
+    
+    try {
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refreshing...';
+        }
+        
+        const response = await fetch('/admin/refresh-stats');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById('teams-stat').textContent = data.teams_count || 0;
+                document.getElementById('players-stat').textContent = data.players_count || 0;
+                document.getElementById('games-stat').textContent = data.games_count || 0;
+                document.getElementById('users-stat').textContent = data.users_count || 0;
+                showToast('Stats refreshed successfully', 'success');
+            } else {
+                throw new Error(data.error || 'Failed to refresh stats');
+            }
+        } else {
+            throw new Error('Server error');
+        }
+    } catch (error) {
+        console.error('Stats refresh failed:', error);
+        showToast('Failed to refresh stats: ' + error.message, 'danger');
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Stats';
+        }
+    }
+}
+
+async function syncData(syncType) {
+    if (syncInProgress) {
+        showToast('Sync already in progress', 'warning');
+        return;
+    }
+
+    currentSyncType = syncType;
+    syncInProgress = true;
+    syncStopped = false;
+    
+    // Show progress UI
+    showProgressUI();
+    disableAllSyncButtons();
+    
+    // Start dynamic progress monitoring
+    let progress = 10;
+    progressInterval = setInterval(() => {
+        if (syncStopped || !syncInProgress || progress >= 90) {
+            return;
+        }
+        progress += Math.random() * 8 + 2; // Random increment between 2-10
+        progress = Math.min(progress, 90);
+        updateProgress(progress, `Processing ${syncType} data...`);
+    }, 1500); // Update every 1.5 seconds
+    
+    try {
+        updateProgress(10, `Starting ${syncType} sync...`);
+        
+        const response = await fetch('/admin/sync-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                sync_type: syncType,
+                parallel: false
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Clear progress interval and complete
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            
+            updateProgress(100, `✅ ${syncType} sync completed!`);
+            showSyncResults(result.result || result.data);
+            
+            if (result.stopped) {
+                showToast(`${syncType} sync was stopped by admin`, 'warning');
+            } else {
+                showToast(result.message || `${syncType} synced successfully!`, 'success');
+            }
+            
+            // Refresh stats after successful sync
+            setTimeout(() => {
+                loadStats();
+            }, 1000);
+        } else {
+            throw new Error(result.error || 'Sync failed');
+        }
+        
+    } catch (error) {
+        if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+        }
+        console.error('Sync error:', error);
+        updateProgress(0, `❌ ${syncType} sync failed: ${error.message}`);
+        showToast(`Sync failed: ${error.message}`, 'danger');
+    } finally {
+        if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+        }
+        syncInProgress = false;
+        enableAllSyncButtons();
+        hideProgressUI();
+    }
+}
+
+// NEW: Shot Chart Sync Functions
+async function syncShotCharts() {
+    if (syncInProgress) {
+        showToast('Sync already in progress', 'warning');
+        return;
+    }
+
+    const playerIdsInput = document.getElementById('shotPlayerIds').value.trim();
+    const season = document.getElementById('shotSeason').value;
+    const maxShots = parseInt(document.getElementById('maxShots').value) || 500;
+    
+    let playerIds = [];
+    if (playerIdsInput) {
+        playerIds = playerIdsInput.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+        if (playerIds.length === 0) {
+            showToast('Please enter valid player IDs', 'warning');
+            return;
+        }
+    }
+    
+    if (!confirm(`This will sync shot chart data for ${playerIds.length > 0 ? playerIds.length + ' specific players' : 'top 5 active players'}. This may take several minutes. Continue?`)) {
+        return;
+    }
+    
+    currentSyncType = 'shot_charts';
+    syncInProgress = true;
+    syncStopped = false;
+    
+    showProgressUI();
+    disableAllSyncButtons();
+    
+    try {
+        updateProgress(10, 'Starting shot chart sync...');
+        
+        const requestBody = {
+            sync_type: 'shot_charts',
+            season: season,
+            max_shots: maxShots
+        };
+        
+        if (playerIds.length > 0) {
+            requestBody.player_ids = playerIds;
+        }
+        
+        const response = await fetch('/admin/sync-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            updateProgress(100, '✅ Shot chart sync completed!');
+            showSyncResults(result.result || result.data);
+            showToast('Shot chart sync completed successfully!', 'success');
+        } else {
+            throw new Error(result.error || 'Shot chart sync failed');
+        }
+        
+    } catch (error) {
+        console.error('Shot chart sync error:', error);
+        updateProgress(0, `❌ Shot chart sync failed: ${error.message}`);
+        showToast('Shot chart sync failed: ' + error.message, 'danger');
+    } finally {
+        syncInProgress = false;
+        enableAllSyncButtons();
+        hideProgressUI();
+    }
+}
+
+async function syncAllWithShots() {
+    if (syncInProgress) {
+        showToast('Sync already in progress', 'warning');
+        return;
+    }
+
+    const maxPlayers = parseInt(document.getElementById('maxPlayersShots').value) || 5;
+    
+    if (!confirm(`This will perform a complete data sync including shot charts for ${maxPlayers} players. This will take a long time. Continue?`)) {
+        return;
+    }
+    
+    currentSyncType = 'all_with_shots';
+    syncInProgress = true;
+    syncStopped = false;
+    
+    showProgressUI();
+    disableAllSyncButtons();
+    
+    try {
+        updateProgress(10, 'Starting complete sync with shot charts...');
+        
+        const response = await fetch('/admin/sync-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sync_type: 'all_with_shots',
+                max_players_for_shots: maxPlayers,
+                parallel: false
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            updateProgress(100, '✅ Complete sync with shot charts completed!');
+            showSyncResults(result.result || result.data);
+            showToast('Complete sync with shot charts finished!', 'success');
+        } else {
+            throw new Error(result.error || 'Complete sync failed');
+        }
+        
+    } catch (error) {
+        console.error('Complete sync error:', error);
+        updateProgress(0, `❌ Complete sync failed: ${error.message}`);
+        showToast('Complete sync failed: ' + error.message, 'danger');
+    } finally {
+        syncInProgress = false;
+        enableAllSyncButtons();
+        hideProgressUI();
+    }
+}
+
+async function debugShotChart() {
+    const playerId = document.getElementById('debugPlayerId').value;
+    
+    if (!playerId) {
+        showToast('Please enter a player ID', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/debug/shot-chart/${playerId}`);
+        const result = await response.json();
+        
+        console.log('Shot Chart Debug Results:', result);
+        
+        if (result.success) {
+            const info = result.debug_info;
+            let message = `Debug Results for ${info.player?.name || 'Player'}:\n\n`;
+            message += `Player Info:\n`;
+            message += `- Internal ID: ${info.player?.internal_id}\n`;
+            message += `- NBA Player ID: ${info.player?.nba_player_id || 'Missing!'}\n\n`;
+            message += `Shot Data:\n`;
+            message += `- Existing shots in DB: ${info.existing_shots?.count || 0}\n`;
+            message += `- NBA API shots available: ${info.nba_api_test?.shots_available || 'Error/Unknown'}\n\n`;
+            message += `System Data:\n`;
+            message += `- Recent games available: ${info.recent_games_available}\n`;
+            message += `- Teams available: ${info.teams_available}\n\n`;
+            
+            if (info.id_mapping_test) {
+                message += `ID Mappings:\n`;
+                message += `- Game ID lookup: ${info.id_mapping_test.game_id_lookup ? 'Working' : 'Failed'}\n`;
+                message += `- Team ID lookup: ${info.id_mapping_test.team_id_lookup ? 'Working' : 'Failed'}\n`;
+                message += `- Player ID lookup: ${info.id_mapping_test.player_id_lookup ? 'Working' : 'Failed'}\n`;
+            }
+            
+            // Show in a modal for better formatting
+            showDebugModal('Shot Chart Debug Results', message);
+        } else {
+            showToast('Debug error: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showToast('Debug error: ' + error.message, 'danger');
+    }
+}
+
+async function testSinglePlayerShots() {
+    const playerId = document.getElementById('debugPlayerId').value;
+    
+    if (!playerId) {
+        showToast('Please enter a player ID', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/test/sync-shot-chart/${playerId}`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            const syncResult = result.sync_result || {};
+            showToast(`Test sync completed for ${result.player_name}. Synced: ${syncResult.synced_count || 0} shots`, 'success');
+        } else {
+            showToast('Test sync error: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showToast('Test sync error: ' + error.message, 'danger');
+    }
+}
+
+function showDebugModal(title, content) {
+    // Create or update debug modal
+    let modal = document.getElementById('debugModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'debugModal';
+        modal.className = 'modal fade';
+        modal.innerHTML = `
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="debugModalLabel">${title}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <pre id="debugModalContent" style="white-space: pre-wrap; font-family: monospace; font-size: 0.9em;"></pre>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    document.getElementById('debugModalLabel').textContent = title;
+    document.getElementById('debugModalContent').textContent = content;
+    
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+async function stopSync() {
+    if (!syncInProgress) {
+        showToast('No sync operation in progress', 'info');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/admin/stop-sync', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            syncStopped = true;
+            
+            // Clear progress monitoring
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            
+            updateProgress(result.progress || 50, `🛑 ${result.message}`);
+            showToast('Sync stopped successfully', 'warning');
+            syncInProgress = false;
+            enableAllSyncButtons();
+            
+            // Hide progress UI after a delay
+            setTimeout(() => {
+                hideProgressUI();
+            }, 2000);
+        } else {
+            throw new Error(result.error || 'Failed to stop sync');
+        }
+        
+    } catch (error) {
+        console.error('Stop sync error:', error);
+        showToast(`Error stopping sync: ${error.message}`, 'danger');
+    }
+}
+
+function showProgressUI() {
+    document.getElementById('progress-container').style.display = 'block';
+    document.getElementById('stopSyncBtn').style.display = 'inline-block';
+}
+
+function hideProgressUI() {
+    setTimeout(() => {
+        if (!syncInProgress) {
+            document.getElementById('progress-container').style.display = 'none';
+            document.getElementById('stopSyncBtn').style.display = 'none';
+        }
+    }, 3000);
+}
+
+function updateProgress(percent, message) {
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const progressPercent = document.getElementById('progress-percent');
+    const statusDiv = document.getElementById('sync-status');
+    
+    const roundedPercent = Math.round(percent);
+    
+    progressBar.style.width = roundedPercent + '%';
+    progressBar.setAttribute('aria-valuenow', roundedPercent);
+    progressText.textContent = message;
+    progressPercent.textContent = roundedPercent + '%';
+    
+    // Also update sync status with timestamp
+    const timestamp = new Date().toLocaleTimeString();
+    statusDiv.innerHTML = `
+        <p class="mb-1"><small class="text-muted">[${timestamp}]</small></p>
+        <p class="mb-0">${message}</p>
+    `;
+}
+
+function showSyncResults(result) {
+    const resultsDiv = document.getElementById('sync-results');
+    const contentDiv = document.getElementById('results-content');
+    
+    if (result && typeof result === 'object') {
+        let html = '<div class="table-responsive"><table class="table table-sm table-bordered">';
+        
+        // Handle different result formats
+        if (result.synced_count !== undefined) {
+            html += `<tr><td><strong>Records Synced:</strong></td><td class="text-end">${result.synced_count}</td></tr>`;
+        }
+        
+        // For "all" sync, show breakdown
+        if ((currentSyncType === 'all' || currentSyncType === 'all_with_shots') && typeof result === 'object') {
+            Object.keys(result).forEach(key => {
+                if (result[key] && typeof result[key] === 'object' && result[key].synced_count !== undefined) {
+                    const capitalizedKey = key.replace('_', ' ').charAt(0).toUpperCase() + key.slice(1);
+                    html += `<tr><td><strong>${capitalizedKey}:</strong></td><td class="text-end">${result[key].synced_count} records</td></tr>`;
+                }
+            });
+        }
+        
+        // Special handling for shot chart results
+        if (result.players_synced !== undefined) {
+            html += `<tr><td><strong>Players Synced:</strong></td><td class="text-end">${result.players_synced}</td></tr>`;
+        }
+        
+        html += '</table></div>';
+        contentDiv.innerHTML = html;
+        resultsDiv.style.display = 'block';
+    } else {
+        resultsDiv.style.display = 'none';
+    }
+}
+
+function disableAllSyncButtons() {
+    const buttons = ['sync-teams', 'sync-players', 'sync-games', 'sync-stats', 'sync-all', 'sync-shot-charts', 'sync-all-shots'];
+    buttons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.disabled = true;
+            // Store original text
+            if (!btn.hasAttribute('data-original-text')) {
+                btn.setAttribute('data-original-text', btn.innerHTML);
+            }
+            // Update button text
+            btn.innerHTML = btn.innerHTML.replace(/Sync/g, 'Syncing...');
+        }
+    });
+}
+
+function enableAllSyncButtons() {
+    const buttons = ['sync-teams', 'sync-players', 'sync-games', 'sync-stats', 'sync-all', 'sync-shot-charts', 'sync-all-shots'];
+    buttons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.disabled = false;
+            // Restore original text if available
+            const originalText = btn.getAttribute('data-original-text');
+            if (originalText) {
+                btn.innerHTML = originalText;
+            } else {
+                // Fallback to default texts
+                const defaultTexts = {
+                    'sync-teams': '<i class="bi bi-people"></i> Sync Teams',
+                    'sync-players': '<i class="bi bi-person"></i> Sync Players',
+                    'sync-games': '<i class="bi bi-calendar"></i> Sync Recent Games',
+                    'sync-stats': '<i class="bi bi-graph-up"></i> Sync Player Stats',
+                    'sync-all': '<i class="bi bi-arrow-clockwise"></i> Sync All Data (Teams + Players + Games + Stats)',
+                    'sync-shot-charts': '<i class="bi bi-target"></i> Sync Shot Charts',
+                    'sync-all-shots': '<i class="bi bi-arrow-clockwise"></i> Sync All + Shot Charts'
+                };
+                btn.innerHTML = defaultTexts[id] || btn.innerHTML.replace('Syncing...', 'Sync');
+            }
+        }
+    });
+}
+
+function showToast(message, type = 'info') {
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '1055';
+        document.body.appendChild(toastContainer);
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, {
+        autohide: true,
+        delay: 5000
+    });
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+// Prevent navigation errors during sync
+window.addEventListener('beforeunload', function(e) {
+    if (syncInProgress) {
+        e.preventDefault();
+        e.returnValue = 'Sync operation in progress. Are you sure you want to leave this page?';
+        return e.returnValue;
+    }
+});
+
+// Handle page visibility changes
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden && syncInProgress) {
+        console.log('Page hidden during sync - sync will continue in background');
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,357 @@
+<!-- templates/teams.html - Fixed Conference Filtering and Image Sizing -->
+{% extends "base.html" %}
+
+{% block title %}NBA Teams - Hoops Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="bi bi-shield"></i> NBA Teams</h2>
+            <p class="text-muted">Browse all {{ teams|length }} NBA teams</p>
+        </div>
+    </div>
+
+    <!-- Conference Filter Tabs -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <ul class="nav nav-pills">
+                <li class="nav-item">
+                    <button class="nav-link active" id="all-tab" onclick="showTeams('all')">
+                        All Teams ({{ teams|length }})
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="eastern-tab" onclick="showTeams('eastern')">
+                        Eastern Conference
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="western-tab" onclick="showTeams('western')">
+                        Western Conference
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Teams Display -->
+    <div class="row" id="teams-container">
+        {% if teams %}
+            {% for team in teams %}
+            <div class="col-xl-3 col-lg-4 col-md-6 mb-4 team-item" 
+                 data-conference="{{ (team.conference or 'unknown')|lower }}"
+                 onclick="window.location.href='{{ url_for('team_detail', team_id=team.id) }}'">
+                <div class="card h-100 team-card">
+                    <div class="card-body text-center d-flex flex-column">
+                        <div class="team-logo-container mb-3">
+                            <img src="{{ get_team_logo_url(team.nba_team_id) if team.nba_team_id else '/static/img/default-team.png' }}" 
+                                 alt="{{ team.name }} logo" 
+                                 class="team-logo"
+                                 onerror="this.src='/static/img/default-team.png'">
+                        </div>
+                        
+                        <div class="team-info flex-grow-1">
+                            <h5 class="card-title">{{ team.city }} {{ team.name }}</h5>
+                            <p class="text-muted mb-2">{{ team.abbreviation }}</p>
+                            
+                            {% if team.conference %}
+                            <small class="badge bg-secondary mb-2">{{ team.conference }} Conference</small>
+                            {% endif %}
+                            
+                            {% if team.division %}
+                            <div class="mt-auto">
+                                <small class="text-muted">{{ team.division }} Division</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="bi bi-shield display-4 text-muted"></i>
+                    <h4 class="text-muted mt-3">No teams found</h4>
+                    <p class="text-muted">Teams data might not be synced yet.</p>
+                    {% if current_user and current_user.role == 'admin' %}
+                        <a href="{{ url_for('admin') }}" class="btn btn-primary">Go to Admin Panel</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+/* Fixed team card sizing and layout */
+.team-card {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    height: 100%;
+    min-height: 250px;
+    border: 1px solid #dee2e6;
+}
+
+.team-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.team-logo-container {
+    height: 80px;
+    width: 80px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.team-logo {
+    max-width: 60px;
+    max-height: 60px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.team-info {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.card-title {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* Navigation pills styling */
+.nav-pills .nav-link {
+    margin-right: 10px;
+    cursor: pointer;
+    border: 1px solid #dee2e6;
+    color: #6c757d;
+    background-color: #fff;
+}
+
+.nav-pills .nav-link.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.nav-pills .nav-link:hover:not(.active) {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    color: #495057;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .team-card {
+        min-height: 220px;
+    }
+    
+    .team-logo-container {
+        height: 60px;
+        width: 60px;
+    }
+    
+    .team-logo {
+        max-width: 45px;
+        max-height: 45px;
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        min-height: 2rem;
+    }
+    
+    .nav-pills .nav-link {
+        font-size: 0.9rem;
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+}
+
+@media (max-width: 576px) {
+    .team-card {
+        min-height: 200px;
+    }
+    
+    .team-logo-container {
+        height: 50px;
+        width: 50px;
+    }
+    
+    .team-logo {
+        max-width: 35px;
+        max-height: 35px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Fixed team filtering functionality
+function showTeams(conference) {
+    const allTeams = document.querySelectorAll('.team-item');
+    const tabs = document.querySelectorAll('.nav-link');
+    
+    // Remove active class from all tabs
+    tabs.forEach(tab => tab.classList.remove('active'));
+    
+    // Add active class to clicked tab - FIXED TAB ID SELECTION
+    const activeTabId = conference === 'all' ? 'all-tab' : conference + '-tab';
+    const activeTab = document.getElementById(activeTabId);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
+    
+    // Show/hide teams based on conference
+    let visibleCount = 0;
+    allTeams.forEach(team => {
+        const teamConference = team.getAttribute('data-conference');
+        let shouldShow = false;
+        
+        if (conference === 'all') {
+            shouldShow = true;
+        } else if (conference === 'eastern') {
+            // Check for various eastern conference labels
+            shouldShow = teamConference.includes('east') || teamConference === 'eastern';
+        } else if (conference === 'western') {
+            // Check for various western conference labels
+            shouldShow = teamConference.includes('west') || teamConference === 'western';
+        }
+        
+        if (shouldShow) {
+            team.style.display = 'block';
+            visibleCount++;
+        } else {
+            team.style.display = 'none';
+        }
+    });
+    
+    // Update tab labels with counts
+    updateTabCounts();
+    
+    // Show message if no teams in selected conference
+    if (visibleCount === 0 && conference !== 'all') {
+        showNoTeamsMessage(conference);
+    } else {
+        hideNoTeamsMessage();
+    }
+}
+
+function updateTabCounts() {
+    const allTeams = document.querySelectorAll('.team-item');
+    
+    let easternCount = 0;
+    let westernCount = 0;
+    let totalCount = 0;
+    
+    allTeams.forEach(team => {
+        const conference = team.getAttribute('data-conference');
+        totalCount++;
+        
+        if (conference.includes('east') || conference === 'eastern') {
+            easternCount++;
+        } else if (conference.includes('west') || conference === 'western') {
+            westernCount++;
+        }
+    });
+    
+    // Update tab text with counts
+    const allTab = document.getElementById('all-tab');
+    const easternTab = document.getElementById('eastern-tab');
+    const westernTab = document.getElementById('western-tab');
+    
+    if (allTab) allTab.textContent = `All Teams (${totalCount})`;
+    if (easternTab) easternTab.textContent = `Eastern Conference (${easternCount})`;
+    if (westernTab) westernTab.textContent = `Western Conference (${westernCount})`;
+}
+
+function showNoTeamsMessage(conference) {
+    const container = document.getElementById('teams-container');
+    const existing = document.getElementById('no-teams-message');
+    
+    if (!existing) {
+        const message = document.createElement('div');
+        message.id = 'no-teams-message';
+        message.className = 'col-12';
+        message.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-search display-4 text-muted"></i>
+                <h4 class="text-muted mt-3">No teams found</h4>
+                <p class="text-muted">No teams found in the ${conference} conference. Try selecting "All Teams".</p>
+            </div>
+        `;
+        container.appendChild(message);
+    }
+}
+
+function hideNoTeamsMessage() {
+    const message = document.getElementById('no-teams-message');
+    if (message) {
+        message.remove();
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Update tab counts
+    updateTabCounts();
+    
+    // Check if teams have proper conference data
+    const teamsWithConference = document.querySelectorAll('[data-conference]:not([data-conference="unknown"]):not([data-conference=""])');
+    if (teamsWithConference.length === 0) {
+        console.warn('No teams have conference data set. Conference filtering may not work properly.');
+        
+        // Show warning to admin users
+        const currentUser = {{ current_user|tojson if current_user else 'null' }};
+        if (currentUser && currentUser.role === 'admin') {
+            if (typeof HoopsTracker !== 'undefined') {
+                HoopsTracker.showToast('Warning: Teams may not have conference data. Consider running data sync.', 'warning');
+            }
+        }
+    }
+    
+    // Add keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        if (e.key === '1') showTeams('all');
+        if (e.key === '2') showTeams('eastern');
+        if (e.key === '3') showTeams('western');
+    });
+});
+
+// Add error handling for broken images
+document.addEventListener('DOMContentLoaded', function() {
+    const teamLogos = document.querySelectorAll('.team-logo');
+    teamLogos.forEach(logo => {
+        logo.addEventListener('error', function() {
+            this.src = '/static/img/default-team.png';
+            this.alt = 'Team logo unavailable';
+        });
+        
+        // Also handle case where image loads but is very small or empty
+        logo.addEventListener('load', function() {
+            if (this.naturalWidth < 10 || this.naturalHeight < 10) {
+                this.src = '/static/img/default-team.png';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

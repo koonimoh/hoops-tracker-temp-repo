@@ -1,0 +1,168 @@
+<!-- templates/roster_partials/players.html -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-people"></i> Roster Players
+                </h5>
+                
+                <!-- View Toggle -->
+                <div class="d-flex gap-2 align-items-center">
+                    <small class="text-muted">View:</small>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="viewType" id="gridView" checked>
+                        <label class="btn btn-outline-secondary" for="gridView" title="Grid View">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                        </label>
+                        <input type="radio" class="btn-check" name="viewType" id="listView">
+                        <label class="btn btn-outline-secondary" for="listView" title="List View">
+                            <i class="bi bi-list"></i>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                {% if roster_players %}
+                    <!-- Grid View -->
+                    <div id="gridViewContent" class="row">
+                        {% for roster_player in roster_players %}
+                        {% set player = roster_player.players or {} %}
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                            <div class="card player-card h-100" 
+                                 data-player-id="{{ player.id or 0 }}" 
+                                 onclick="viewPlayer({{ player.id or 0 }})" 
+                                 style="cursor: pointer;">
+                                <div class="card-body text-center">
+                                    <!-- Player Image -->
+                                    <img src="{{ get_player_headshot_url(player.nba_player_id) if player.nba_player_id else '/static/img/default-player.png' }}" 
+                                         alt="{{ player.first_name or '' }} {{ player.last_name or '' }}" 
+                                         class="player-headshot mb-3"
+                                         onerror="this.src='/static/img/default-player.png'">
+                                    
+                                    <!-- Player Info -->
+                                    <h6 class="card-title mb-1">
+                                        {{ player.first_name or '' }} {{ player.last_name or '' }}
+                                    </h6>
+                                    
+                                    <p class="text-muted mb-2 small">
+                                        {% if player.team_name %}{{ player.team_name }}{% endif %}
+                                        {% if player.position %} • {{ player.position }}{% endif %}
+                                    </p>
+                                    
+                                    {% if player.jersey_number %}
+                                    <span class="badge bg-primary mb-2">#{{ player.jersey_number }}</span>
+                                    {% endif %}
+                                    
+                                    <!-- Player Stats -->
+                                    <div class="d-flex justify-content-between small text-muted mt-3">
+                                        <span>{{ "%.1f"|format(player.avg_points or 0) }} PPG</span>
+                                        <span>{{ "%.1f"|format(player.avg_rebounds or 0) }} RPG</span>
+                                        <span>{{ "%.1f"|format(player.avg_assists or 0) }} APG</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Card Footer -->
+                                <div class="card-footer text-center bg-light">
+                                    <button class="btn btn-sm btn-outline-danger" 
+                                            onclick="removePlayer(event, {{ roster.id }}, {{ player.id or 0 }})">
+                                        <i class="bi bi-x-circle"></i> Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- List View -->
+                    <div id="listViewContent" class="table-responsive" style="display: none;">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Team</th>
+                                    <th>Position</th>
+                                    <th class="text-center">PPG</th>
+                                    <th class="text-center">RPG</th>
+                                    <th class="text-center">APG</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for roster_player in roster_players %}
+                                {% set player = roster_player.players or {} %}
+                                <tr data-player-id="{{ player.id or 0 }}" 
+                                    onclick="viewPlayer({{ player.id or 0 }})" 
+                                    style="cursor: pointer;">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <img src="{{ get_player_headshot_url(player.nba_player_id) if player.nba_player_id else '/static/img/default-player.png' }}" 
+                                                 alt="{{ player.first_name or '' }} {{ player.last_name or '' }}" 
+                                                 width="40" height="40" 
+                                                 class="rounded-circle me-3"
+                                                 onerror="this.src='/static/img/default-player.png'">
+                                            <div>
+                                                <div class="fw-bold">{{ player.first_name or '' }} {{ player.last_name or '' }}</div>
+                                                {% if player.jersey_number %}
+                                                <small class="text-muted">#{{ player.jersey_number }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ player.team_name or '-' }}</td>
+                                    <td>{{ player.position or '-' }}</td>
+                                    <td class="text-center">{{ "%.1f"|format(player.avg_points or 0) }}</td>
+                                    <td class="text-center">{{ "%.1f"|format(player.avg_rebounds or 0) }}</td>
+                                    <td class="text-center">{{ "%.1f"|format(player.avg_assists or 0) }}</td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-danger" 
+                                                onclick="removePlayer(event, {{ roster.id }}, {{ player.id or 0 }})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <!-- Empty State -->
+                    <div class="text-center py-5">
+                        <i class="bi bi-people display-1 text-muted"></i>
+                        <h4 class="text-muted mt-3">No players in this roster yet</h4>
+                        <p class="text-muted">Add some players to build your dream team!</p>
+                        <button class="btn btn-primary" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#addPlayerModal">
+                            <i class="bi bi-person-plus"></i> Add Your First Player
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.player-headshot {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.player-card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.player-search-result {
+    transition: background-color 0.2s;
+}
+
+.player-search-result:hover {
+    background-color: #f8f9fa !important;
+}
+</style>

@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hoops Tracker{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #c9302c;
+            --secondary-color: #2c3e50;
+            --light-bg: #f8f9fa;
+        }
+        
+        /* Simple, clean layout */
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--light-bg);
+        }
+
+        main {
+            flex: 1;
+            padding: 0;
+        }
+
+        /* Clean navigation */
+        .navbar-brand {
+            font-weight: 600;
+            color: var(--primary-color) !important;
+        }
+        
+        /* Simple button styling */
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #a02622;
+            border-color: #a02622;
+        }
+        
+        /* Clean cards */
+        .card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: none;
+        }
+        
+        .card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Simple table styling */
+        .table {
+            background: white;
+        }
+        
+        /* Clean forms */
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(201, 48, 44, 0.25);
+        }
+        
+        /* Simple pagination */
+        .pagination .page-link {
+            color: var(--primary-color);
+        }
+        
+        .pagination .page-item.active .page-link {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        /* Clean footer */
+        footer {
+            margin-top: auto;
+            background-color: var(--secondary-color);
+        }
+        
+        /* Simple loading spinner */
+        .spinner-border {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+        
+        /* Clean text colors */
+        .text-primary {
+            color: var(--primary-color) !important;
+        }
+        
+        /* Simple responsive adjustments */
+        @media (max-width: 768px) {
+            .container-fluid {
+                padding-left: 15px;
+                padding-right: 15px;
+            }
+            
+            .btn {
+                font-size: 0.9rem;
+            }
+        }
+        
+        /* Remove fancy hover effects and animations */
+        * {
+            transition: none !important;
+            animation: none !important;
+        }
+        
+        /* Simple hover for interactive elements only */
+        .btn:hover,
+        .card:hover,
+        .nav-link:hover {
+            transition: all 0.2s ease !important;
+        }
+
+        /* Favorite button styles */
+        .btn.btn-primary i.bi-heart-fill {
+            color: white;
+        }
+
+        .btn.btn-outline-primary i.bi-heart {
+            color: var(--primary-color);
+        }
+
+        /* Loading animation for buttons */
+        .btn i.bi-hourglass-split {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Pulse animation for favorites count */
+        #favorites-count {
+            display: inline-block;
+        }
+
+        /* Improve toast positioning to work with your existing system */
+        .alert.position-fixed {
+            max-width: 400px;
+            word-wrap: break-word;
+        }
+    </style>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Simple Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="bi bi-trophy"></i> Hoops Tracker
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('players') }}">Players</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('teams') }}">Teams</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('standings') }}">Standings</a>
+                    </li>
+                    {% if current_user %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rosters') }}">My Rosters</a>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <ul class="navbar-nav">
+                    {% if current_user %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-circle"></i> {{ current_user.username or current_user.email }}
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">Profile</a></li>
+                                {% if current_user.role == 'admin' %}
+                                <li><a class="dropdown-item" href="{{ url_for('admin') }}">Admin</a></li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container-fluid mt-3">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Simple Footer -->
+    <footer class="text-light py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5><i class="bi bi-trophy"></i> Hoops Tracker</h5>
+                    <p class="mb-0">NBA statistics and roster management platform</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Quick Links</h6>
+                    <div class="d-flex gap-3">
+                        <a href="{{ url_for('players') }}" class="text-light text-decoration-none">Players</a>
+                        <a href="{{ url_for('teams') }}" class="text-light text-decoration-none">Teams</a>
+                        <a href="{{ url_for('standings') }}" class="text-light text-decoration-none">Standings</a>
+                    </div>
+                </div>
+            </div>
+            <hr class="my-3">
+            <div class="text-center">
+                <small>&copy; 2025 Hoops Tracker. Built with Flask & Supabase.</small>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modals -->
+    {% block modals %}{% endblock %}
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Simple Global JavaScript -->
+    <script>
+        // Simple utilities only
+        const HoopsTracker = {
+            // Simple toast notifications
+            showToast: function(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+                toast.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
+                toast.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                document.body.appendChild(toast);
+                
+                // Auto remove after 4 seconds
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 4000);
+            },
+            
+            // Simple number formatting
+            formatNumber: function(num) {
+                if (num === null || num === undefined) return '0';
+                return num.toLocaleString();
+            }
+        };
+        
+        // Simple tooltip initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            tooltips.forEach(function(tooltip) {
+                new bootstrap.Tooltip(tooltip);
+            });
+        });
+    </script>
+    
+    <!-- Enhanced favorites functionality -->
+    <script>
+    // Enhanced favorites functionality that works with your existing toast system
+    
+    // Extend the existing HoopsTracker object
+    HoopsTracker.favorites = {
+        // Enhanced addToFavorites function
+        add: async function(type, id, event) {
+            try {
+                if (event) {
+                    event.stopPropagation();
+                }
+                
+                // Show loading state
+                const button = event ? event.target.closest('button') : null;
+                if (button) {
+                    const originalHtml = button.innerHTML;
+                    button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+                    button.disabled = true;
+                    button.setAttribute('data-original-html', originalHtml);
+                }
+                
+                console.log('Adding to favorites:', {type, id});
+                
+                const response = await fetch('/api/favorites', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        entity_type: type,
+                        entity_id: parseInt(id)
+                    })
+                });
+                
+                const result = await response.json();
+                console.log('Favorites API response:', result);
+                
+                if (response.ok && result.success) {
+                    HoopsTracker.showToast('Added to favorites!', 'success');
+                    
+                    // Update button to favorited state
+                    if (button) {
+                        HoopsTracker.favorites.updateButton(button, true, type, id);
+                    }
+                    
+                    // Update favorites count immediately
+                    await HoopsTracker.favorites.updateCount();
+                    
+                } else if (response.status === 400 && (result.error === 'Already in favorites' || result.error.includes('Already in favorites'))) {
+                    // Handle already favorited case
+                    HoopsTracker.showToast('Already in favorites!', 'warning');
+                    
+                    // Update button to show it's already favorited
+                    if (button) {
+                        HoopsTracker.favorites.updateButton(button, true, type, id);
+                    }
+                    
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+                
+            } catch (error) {
+                console.error('Error adding to favorites:', error);
+                HoopsTracker.showToast('Error: ' + error.message, 'danger');
+                
+                // Reset button state on error
+                const button = event ? event.target.closest('button') : null;
+                if (button) {
+                    const originalHtml = button.getAttribute('data-original-html') || '<i class="bi bi-heart"></i>';
+                    button.innerHTML = originalHtml;
+                    button.disabled = false;
+                    button.removeAttribute('data-original-html');
+                }
+            }
+        },
+
+        // Enhanced removeFromFavorites function
+        remove: async function(type, id, event, button) {
+            try {
+                // Prevent event bubbling
+                if (event) {
+                    event.stopPropagation();
+                }
+                
+                // Show loading state
+                if (button) {
+                    button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+                    button.disabled = true;
+                }
+                
+                const response = await fetch(`/api/favorites?entity_type=${type}&entity_id=${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    HoopsTracker.showToast('Removed from favorites', 'success');
+                    
+                    // Update the button back to unfavorited state
+                    if (button) {
+                        HoopsTracker.favorites.updateButton(button, false, type, id);
+                    }
+                    
+                    // Update favorites count immediately
+                    await HoopsTracker.favorites.updateCount();
+                    
+                } else {
+                    throw new Error(result.error || 'Failed to remove from favorites');
+                }
+                
+            } catch (error) {
+                console.error('Error removing from favorites:', error);
+                HoopsTracker.showToast('Error: ' + error.message, 'danger');
+                
+                // Reset button state on error
+                if (button) {
+                    button.innerHTML = '<i class="bi bi-heart-fill"></i>';
+                    button.disabled = false;
+                }
+            }
+        },
+
+        // Update button appearance and functionality
+        updateButton: function(button, isFavorited, type, id) {
+            if (!button) return;
+            
+            // Remove loading state
+            button.disabled = false;
+            button.removeAttribute('data-original-html');
+            
+            if (isFavorited) {
+                button.classList.remove('btn-outline-primary');
+                button.classList.add('btn-primary');
+                button.innerHTML = '<i class="bi bi-heart-fill"></i>';
+                button.title = 'Remove from favorites';
+                button.onclick = (e) => HoopsTracker.favorites.remove(type, id, e, button);
+            } else {
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-outline-primary');
+                button.innerHTML = '<i class="bi bi-heart"></i>';
+                button.title = 'Add to favorites';
+                button.onclick = (e) => HoopsTracker.favorites.add(type, id, e);
+            }
+        },
+
+        // Update favorites count with animation
+        updateCount: async function() {
+            try {
+                const response = await fetch('/api/favorites');
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        const countElement = document.getElementById('favorites-count');
+                        if (countElement) {
+                            countElement.textContent = result.data.length;
+                            
+                            // Add a little pulse animation to show the count changed
+                            countElement.style.transform = 'scale(1.3)';
+                            countElement.style.transition = 'transform 0.2s ease';
+                            setTimeout(() => {
+                                countElement.style.transform = 'scale(1)';
+                            }, 200);
+                            
+                            // Reset transition after animation
+                            setTimeout(() => {
+                                countElement.style.transition = '';
+                            }, 400);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('Failed to update favorites count:', error.message);
+            }
+        },
+
+        // Initialize favorites buttons on page load
+        initialize: async function() {
+            try {
+                const response = await fetch('/api/favorites');
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.data) {
+                        const userFavorites = result.data;
+                        
+                        // Update all favorite buttons based on current user favorites
+                        document.querySelectorAll('button[onclick*="addToFavorites"]').forEach(button => {
+                            const onclickStr = button.getAttribute('onclick');
+                            const match = onclickStr.match(/addToFavorites\('(\w+)',\s*(\d+)/);
+                            
+                            if (match) {
+                                const [, type, id] = match;
+                                const isFavorited = userFavorites.some(fav => 
+                                    fav.entity_type === type && fav.entity_id === parseInt(id)
+                                );
+                                
+                                if (isFavorited) {
+                                    HoopsTracker.favorites.updateButton(button, true, type, id);
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                console.log('Failed to initialize favorite buttons:', error.message);
+            }
+        }
+    };
+
+    // Backward compatibility - these functions will work with existing onclick attributes
+    function addToFavorites(type, id, event) {
+        return HoopsTracker.favorites.add(type, id, event);
+    }
+
+    function removeFromFavorites(type, id, event, button) {
+        return HoopsTracker.favorites.remove(type, id, event, button);
+    }
+
+    // Initialize favorites when the page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        // Only initialize if user is logged in (check if there's a user dropdown or dashboard link)
+        const userDropdown = document.getElementById('navbarDropdown');
+        const dashboardLink = document.querySelector('a[href*="dashboard"]');
+        
+        if (userDropdown || dashboardLink) {
+            HoopsTracker.favorites.initialize();
+        }
+    });
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

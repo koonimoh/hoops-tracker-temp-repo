@@ -1,0 +1,785 @@
+<!-- templates/player_detail.html - Enhanced with Better Data Display -->
+{% extends "base.html" %}
+
+{% block title %}{{ player.first_name }} {{ player.last_name }} - Hoops Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Player Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-2 text-center">
+                            <div class="player-image-container">
+                                <img src="{{ get_player_headshot_url(player.nba_player_id) if player.nba_player_id else '/static/img/default-player.png' }}" 
+                                     class="player-headshot-large" 
+                                     alt="{{ player.first_name }} {{ player.last_name }}"
+                                     onerror="handlePlayerImageError(this)">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h2>{{ player.first_name }} {{ player.last_name }}</h2>
+                            {% if player.teams %}
+                            <h5 class="text-muted">{{ player.teams.name }}</h5>
+                            <p class="mb-2">
+                                {% if player.position %}
+                                <span class="badge bg-secondary">{{ player.position }}</span>
+                                {% endif %}
+                                {% if player.jersey_number %}
+                                <span class="badge bg-primary">#{{ player.jersey_number }}</span>
+                                {% endif %}
+                            </p>
+                            {% endif %}
+                            
+                            <div class="row mt-3">
+                                {% if player.height_inches %}
+                                <div class="col-auto">
+                                    <small class="text-muted">Height:</small><br>
+                                    <strong>{{ (player.height_inches // 12) }}'{{ (player.height_inches % 12) }}"</strong>
+                                </div>
+                                {% endif %}
+                                {% if player.weight_lbs %}
+                                <div class="col-auto">
+                                    <small class="text-muted">Weight:</small><br>
+                                    <strong>{{ player.weight_lbs }} lbs</strong>
+                                </div>
+                                {% endif %}
+                                {% if player.experience_years is defined and player.experience_years is not none %}
+                                <div class="col-auto">
+                                    <small class="text-muted">Experience:</small><br>
+                                    <strong>{{ player.experience_years }} {{ 'year' if player.experience_years == 1 else 'years' }}</strong>
+                                </div>
+                                {% endif %}
+                                {% if player.college %}
+                                <div class="col-auto">
+                                    <small class="text-muted">College:</small><br>
+                                    <strong>{{ player.college }}</strong>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            {% if current_user %}
+                            <button class="btn btn-outline-primary mb-2 w-100" 
+                                    onclick="addToFavorites('player', {{ player.id }}, event)">
+                                <i class="bi bi-heart"></i> Add to Favorites
+                            </button>
+                            <button class="btn btn-primary w-100" 
+                                    onclick="showAddToRosterModal({{ player.id }}, '{{ player.first_name }} {{ player.last_name }}')">
+                                <i class="bi bi-plus-circle"></i> Add to Roster
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats and Charts -->
+    <div class="row">
+        <!-- Season Stats -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="bi bi-graph-up"></i> Season Averages</h5>
+                </div>
+                <div class="card-body">
+                    {% if season_stats and season_stats.games_played > 0 %}
+                    <div class="stats-grid">
+                        <div class="stat-item text-center mb-3">
+                            <div class="stat-value">{{ "%.1f"|format(season_stats.avg_points or 0) }}</div>
+                            <div class="stat-label">Points</div>
+                        </div>
+                        <div class="stat-item text-center mb-3">
+                            <div class="stat-value">{{ "%.1f"|format(season_stats.avg_rebounds or 0) }}</div>
+                            <div class="stat-label">Rebounds</div>
+                        </div>
+                        <div class="stat-item text-center mb-3">
+                            <div class="stat-value">{{ "%.1f"|format(season_stats.avg_assists or 0) }}</div>
+                            <div class="stat-label">Assists</div>
+                        </div>
+                        <div class="stat-item text-center mb-3">
+                            <div class="stat-value">{{ season_stats.games_played or 0 }}</div>
+                            <div class="stat-label">Games</div>
+                        </div>
+                        
+                        <!-- Additional stats if available -->
+                        {% if season_stats.field_goal_percentage %}
+                        <div class="stat-item text-center mb-3">
+                            <div class="stat-value">{{ "%.1f"|format((season_stats.field_goal_percentage * 100) or 0) }}%</div>
+                            <div class="stat-label">FG%</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if season_stats.three_point_percentage %}
+                        <div class="stat-item text-center">
+                            <div class="stat-value">{{ "%.1f"|format((season_stats.three_point_percentage * 100) or 0) }}%</div>
+                            <div class="stat-label">3P%</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-graph-up display-4"></i>
+                        <p class="mt-2 mb-1">No season stats available</p>
+                        <small>Stats will appear once games are played and synced</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Shot Chart -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-target"></i> Shot Chart</h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary active" id="btn-all" onclick="loadShotChart('all')">All</button>
+                        <button type="button" class="btn btn-outline-secondary" id="btn-made" onclick="loadShotChart('made')">Made</button>
+                        <button type="button" class="btn btn-outline-secondary" id="btn-missed" onclick="loadShotChart('missed')">Missed</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="shot-chart-container" style="height: 400px; display: flex; align-items: center; justify-content: center;">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted mb-0">Loading shot chart...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Games -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-calendar"></i> Recent Games</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_games %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Opponent</th>
+                                    <th>MIN</th>
+                                    <th>PTS</th>
+                                    <th>REB</th>
+                                    <th>AST</th>
+                                    <th>FG</th>
+                                    <th>3P</th>
+                                    <th>FT</th>
+                                    <th>+/-</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for game in recent_games %}
+                                <tr>
+                                    <td>
+                                        {% if game.games and game.games.game_date %}
+                                            {{ game.games.game_date|date }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if game.games %}
+                                            {% if game.games.home_team and game.games.away_team %}
+                                                {% if game.games.home_team.name == player.teams.name %}
+                                                    <strong>vs</strong> {{ game.games.away_team.abbreviation }}
+                                                {% else %}
+                                                    <strong>@</strong> {{ game.games.home_team.abbreviation }}
+                                                {% endif %}
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ game.minutes_played or 0 }}</td>
+                                    <td><strong>{{ game.points or 0 }}</strong></td>
+                                    <td>{{ game.rebounds or 0 }}</td>
+                                    <td>{{ game.assists or 0 }}</td>
+                                    <td>
+                                        {{ game.field_goals_made or 0 }}/{{ game.field_goals_attempted or 0 }}
+                                        {% if game.field_goals_attempted and game.field_goals_attempted > 0 %}
+                                            <small class="text-muted">({{ "%.1f"|format((game.field_goals_made / game.field_goals_attempted) * 100) }}%)</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ game.three_pointers_made or 0 }}/{{ game.three_pointers_attempted or 0 }}
+                                        {% if game.three_pointers_attempted and game.three_pointers_attempted > 0 %}
+                                            <small class="text-muted">({{ "%.1f"|format((game.three_pointers_made / game.three_pointers_attempted) * 100) }}%)</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ game.free_throws_made or 0 }}/{{ game.free_throws_attempted or 0 }}
+                                        {% if game.free_throws_attempted and game.free_throws_attempted > 0 %}
+                                            <small class="text-muted">({{ "%.1f"|format((game.free_throws_made / game.free_throws_attempted) * 100) }}%)</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% set plus_minus = game.plus_minus or 0 %}
+                                        <span class="{% if plus_minus > 0 %}text-success{% elif plus_minus < 0 %}text-danger{% endif %}">
+                                            {% if plus_minus > 0 %}+{% endif %}{{ plus_minus }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-calendar-x display-4"></i>
+                        <p class="mt-2 mb-1">No recent games available</p>
+                        <small>Game stats will appear once data is synced</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Add to Roster Modal -->
+<div class="modal fade" id="addToRosterModal" 
+     aria-labelledby="addToRosterModalLabel" 
+     aria-hidden="true"
+     style="z-index: 1060;">
+    <div class="modal-dialog" style="margin-top: 8vh;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addToRosterModalLabel">Add Player to Roster</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Add <strong id="playerName"></strong> to which roster?</p>
+                <div id="rostersList">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted mb-0">Loading rosters...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+/* Enhanced player image sizing and containers */
+.player-image-container {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #dee2e6;
+}
+
+.player-headshot-large {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+}
+
+/* Enhanced stats styling */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 1rem;
+}
+
+.stat-item .stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
+    line-height: 1;
+}
+
+.stat-item .stat-label {
+    color: #6c757d;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+/* Enhanced card styling */
+.card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Table enhancements */
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.table td {
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+/* Button styling */
+.btn.w-100 {
+    margin-bottom: 0.5rem;
+}
+
+.btn.w-100:last-child {
+    margin-bottom: 0;
+}
+
+/* Shot chart container */
+#shot-chart-container {
+    position: relative;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+}
+
+#shot-chart-container canvas {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .player-image-container {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .stat-item .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+    
+    .btn-group-sm .btn {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .player-image-container {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .stat-item .stat-value {
+        font-size: 1.25rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentPlayerId = null;
+let currentShotData = [];
+let currentFilter = 'all';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadShotChart('all');
+});
+
+function handlePlayerImageError(img) {
+    // Try alternative NBA headshot URL first
+    if (!img.src.includes('default-player.png') && !img.hasAttribute('data-retried')) {
+        img.setAttribute('data-retried', 'true');
+        const playerId = {{ player.nba_player_id if player.nba_player_id else 0 }};
+        if (playerId > 0) {
+            // Try different NBA image URL format
+            img.src = `https://cdn.nba.com/headshots/nba/latest/1040x760/${playerId}.png`;
+            return;
+        }
+    }
+    
+    // Fallback to default image
+    img.src = '/static/img/default-player.png';
+    img.alt = 'Player headshot unavailable';
+}
+
+// Enhanced showToast function that uses the global HoopsTracker
+function showToast(message, type = 'info') {
+    if (typeof HoopsTracker !== 'undefined') {
+        HoopsTracker.showToast(message, type);
+    } else {
+        // Fallback toast implementation
+        console.log(`${type.toUpperCase()}: ${message}`);
+        alert(`${type.toUpperCase()}: ${message}`);
+    }
+}
+
+// Add to Roster Modal Functions (same as players.html)
+async function showAddToRosterModal(playerId, playerName) {
+    currentPlayerId = playerId;
+    document.getElementById('playerName').textContent = playerName;
+    
+    try {
+        const response = await fetch('/api/rosters');
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data) {
+                displayRosterOptions(result.data);
+            } else {
+                showNoRostersMessage();
+            }
+        } else {
+            showNoRostersMessage();
+        }
+    } catch (error) {
+        console.error('Error loading rosters:', error);
+        showNoRostersMessage();
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('addToRosterModal'));
+    modal.show();
+}
+
+function displayRosterOptions(rosters) {
+    const rostersList = document.getElementById('rostersList');
+    
+    if (rosters.length === 0) {
+        showNoRostersMessage();
+        return;
+    }
+    
+    rostersList.innerHTML = rosters.map(roster => `
+        <div class="roster-option mb-2">
+            <button class="btn btn-outline-primary w-100 roster-btn" 
+                    data-roster-id="${roster.id}" 
+                    data-roster-name="${roster.name}">
+                ${roster.name} (${roster.player_count || 0}/15 players)
+            </button>
+        </div>
+    `).join('') + `
+        <div class="mt-3 pt-3 border-top">
+            <button class="btn btn-success w-100" id="create-new-roster-btn">
+                <i class="bi bi-plus-circle"></i> Create New Roster
+            </button>
+        </div>
+    `;
+    
+    // Add event listeners to the buttons
+    document.querySelectorAll('.roster-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const rosterId = this.getAttribute('data-roster-id');
+            const rosterName = this.getAttribute('data-roster-name');
+            addPlayerToRoster(rosterId, rosterName);
+        });
+    });
+    
+    document.getElementById('create-new-roster-btn').addEventListener('click', function() {
+        createRosterForPlayer();
+    });
+}
+
+function showNoRostersMessage() {
+    const rostersList = document.getElementById('rostersList');
+    rostersList.innerHTML = `
+        <div class="text-center">
+            <p class="text-muted">No rosters found</p>
+            <button class="btn btn-primary" onclick="createRosterForPlayer()">
+                <i class="bi bi-plus-circle"></i> Create New Roster
+            </button>
+        </div>
+    `;
+}
+
+async function addPlayerToRoster(rosterId, rosterName) {
+    try {
+        const response = await fetch(`/api/rosters/${rosterId}/players`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                player_id: currentPlayerId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(`Player added to ${rosterName}!`, 'success');
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addToRosterModal'));
+            modal.hide();
+        } else {
+            throw new Error(result.error || 'Failed to add player to roster');
+        }
+        
+    } catch (error) {
+        console.error('Error adding player to roster:', error);
+        showToast('Error: ' + error.message, 'danger');
+    }
+}
+
+function createRosterForPlayer() {
+    window.location.href = '/rosters';
+}
+
+// Shot Chart Functions (Fixed)
+async function loadShotChart(filter = 'all') {
+    currentFilter = filter;
+    
+    // Update button states
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById(`btn-${filter}`).classList.add('active');
+    
+    const container = document.getElementById('shot-chart-container');
+    
+    // Show loading state
+    container.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted mb-0">Loading shot chart...</p>
+        </div>
+    `;
+    
+    try {
+        const response = await fetch(`/api/players/{{ player.id }}/shot-chart`);
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data && result.data.length > 0) {
+                currentShotData = result.data;
+                renderShotChart(result.data, filter);
+            } else {
+                showNoShotChart();
+            }
+        } else {
+            throw new Error('Failed to load shot chart');
+        }
+    } catch (error) {
+        console.error('Error loading shot chart:', error);
+        showShotChartError();
+    }
+}
+
+function renderShotChart(shotData, filter = 'all') {
+    const container = document.getElementById('shot-chart-container');
+    
+    // Filter data based on selection
+    let filteredData = shotData;
+    if (filter === 'made') {
+        filteredData = shotData.filter(shot => shot.shot_made);
+    } else if (filter === 'missed') {
+        filteredData = shotData.filter(shot => !shot.shot_made);
+    }
+    
+    if (filteredData.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="bi bi-target display-4"></i>
+                <p class="mt-2 mb-0">No ${filter === 'all' ? '' : filter + ' '}shots found</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 500;
+    canvas.height = 400;
+    canvas.style.maxWidth = '100%';
+    canvas.style.height = 'auto';
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas with court color
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw simplified basketball court
+    drawBasketballCourt(ctx, canvas.width, canvas.height);
+    
+    // Draw shots
+    filteredData.forEach(shot => {
+        drawShot(ctx, shot, canvas.width, canvas.height);
+    });
+    
+    // Add legend and stats
+    drawLegend(ctx, filteredData, filter, canvas.width, canvas.height);
+    
+    container.innerHTML = '';
+    container.appendChild(canvas);
+}
+
+function drawBasketballCourt(ctx, width, height) {
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    
+    // Court boundaries
+    ctx.strokeRect(50, 50, width-100, height-100);
+    
+    // Center circle
+    ctx.beginPath();
+    ctx.arc(width/2, height/2, 40, 0, 2 * Math.PI);
+    ctx.stroke();
+    
+    // Free throw circles (both ends)
+    ctx.beginPath();
+    ctx.arc(width/2, 100, 30, 0, 2 * Math.PI);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.arc(width/2, height-100, 30, 0, 2 * Math.PI);
+    ctx.stroke();
+    
+    // Three-point lines (simplified arcs)
+    ctx.beginPath();
+    ctx.arc(width/2, 100, 120, 0, Math.PI);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.arc(width/2, height-100, 120, Math.PI, 2 * Math.PI);
+    ctx.stroke();
+    
+    // Baskets
+    ctx.fillStyle = '#ff6b35';
+    ctx.fillRect(width/2 - 15, 95, 30, 5);
+    ctx.fillRect(width/2 - 15, height-100, 30, 5);
+}
+
+function drawShot(ctx, shot, canvasWidth, canvasHeight) {
+    ctx.beginPath();
+    
+    // Scale and position shots (adjust these multipliers as needed)
+    const x = (canvasWidth/2) + (shot.loc_x * 2.5);
+    const y = (canvasHeight/2) - (shot.loc_y * 1.8);
+    
+    // Ensure shot is within canvas bounds
+    const clampedX = Math.max(50, Math.min(x, canvasWidth - 50));
+    const clampedY = Math.max(50, Math.min(y, canvasHeight - 50));
+    
+    const radius = shot.shot_made ? 5 : 4;
+    ctx.arc(clampedX, clampedY, radius, 0, 2 * Math.PI);
+    
+    // Color based on make/miss
+    ctx.fillStyle = shot.shot_made ? '#28a745' : '#dc3545';
+    ctx.fill();
+    
+    // Add border
+    ctx.strokeStyle = shot.shot_made ? '#1e7e34' : '#c82333';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+}
+
+function drawLegend(ctx, data, filter, canvasWidth, canvasHeight) {
+    const madeShots = data.filter(shot => shot.shot_made).length;
+    const missedShots = data.length - madeShots;
+    const percentage = data.length > 0 ? ((madeShots / data.length) * 100).toFixed(1) : 0;
+    
+    ctx.font = '12px Arial';
+    ctx.fillStyle = '#333';
+    
+    let yPos = canvasHeight - 30;
+    
+    if (filter === 'all' || filter === 'made') {
+        // Made shots legend
+        ctx.fillStyle = '#28a745';
+        ctx.fillRect(60, yPos - 10, 10, 10);
+        ctx.fillStyle = '#333';
+        ctx.fillText(`Made (${madeShots})`, 75, yPos);
+    }
+    
+    if (filter === 'all' || filter === 'missed') {
+        const xOffset = filter === 'all' ? 160 : 60;
+        // Missed shots legend  
+        ctx.fillStyle = '#dc3545';
+        ctx.fillRect(xOffset, yPos - 10, 10, 10);
+        ctx.fillStyle = '#333';
+        ctx.fillText(`Missed (${missedShots})`, xOffset + 15, yPos);
+    }
+    
+    // Show percentage
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText(`${percentage}% (${madeShots}/${data.length})`, canvasWidth - 120, yPos);
+}
+
+function showNoShotChart() {
+    document.getElementById('shot-chart-container').innerHTML = `
+        <div class="text-center text-muted">
+            <i class="bi bi-target display-4"></i>
+            <p class="mt-2 mb-1">No shot chart data available</p>
+            <small>Shot data will appear once games are played and synced</small>
+        </div>
+    `;
+}
+
+function showShotChartError() {
+    document.getElementById('shot-chart-container').innerHTML = `
+        <div class="text-center text-danger">
+            <i class="bi bi-exclamation-triangle display-4"></i>
+            <p class="mt-2 mb-1">Error loading shot chart</p>
+            <small>Please try refreshing the page</small>
+        </div>
+    `;
+}
+
+function addToFavorites(type, id, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    if (typeof HoopsTracker !== 'undefined') {
+        HoopsTracker.addToFavorites(type, id);
+    } else {
+        showToast('Added to favorites!', 'success');
+    }
+}
+</script>
+{% endblock %}
