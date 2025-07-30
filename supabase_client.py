@@ -1,5 +1,7 @@
-# supabase_client.py - Complete Enhanced Supabase Client with Intelligent Caching
-import os
+# Enhanced Supabase client with intelligent caching
+# Added caching everywhere because database queries can get expensive
+# Thread-safe cache implementation for production use
+
 import logging
 from typing import Dict, List, Optional, Any
 from supabase import create_client, Client
@@ -7,6 +9,9 @@ from postgrest.exceptions import APIError
 from datetime import datetime, timedelta, timezone
 import threading
 
+# Custom cache manager with expiration
+# Much faster than hitting database for every request
+# Automatically cleans up expired entries
 class CacheManager:
     """Thread-safe cache manager for Supabase operations"""
     
@@ -23,7 +28,7 @@ class CacheManager:
                     if datetime.now(timezone.utc) < self.cache_expiry[key]:
                         return self.cache[key]
                     else:
-                        # Expired, remove
+                        # If Expired, remove
                         del self.cache[key]
                         del self.cache_expiry[key]
                 else:
@@ -70,7 +75,7 @@ class CacheManager:
             }
 
 class SupabaseClient:
-    """Enhanced Supabase client with intelligent caching and NBA app optimizations"""
+    """" Supabase client with intelligent caching and NBA app optimizations"""
     
     def __init__(self):
         url = os.environ.get("SUPABASE_URL")
@@ -83,7 +88,7 @@ class SupabaseClient:
         self.logger = logging.getLogger(__name__)
         self.cache = CacheManager()
         
-        # Setup enhanced logging
+        # Setup  logging
         if not self.logger.handlers:
             handler = logging.StreamHandler()
             formatter = logging.Formatter(
@@ -456,6 +461,9 @@ class SupabaseClient:
             return {"success": False, "error": str(e)}
 
     # ======== Shot chart methods ========
+    # Shot chart data insertion with validation
+    # Filter out invalid shots because NBA API sometimes returns bad data
+    # Upsert to handle duplicate shots from multiple syncs
     def get_player_shot_chart(self, player_id: int, game_id: int = None, season: str = None) -> List[Dict]:
         """Get shot chart data for a player with caching"""
         cache_key = f"shot_chart_{player_id}_{game_id}_{season}"
@@ -479,7 +487,7 @@ class SupabaseClient:
         return self._cached_query(cache_key, fetch_shot_chart, cache_minutes=120)
 
     def insert_shot_chart_data(self, shot_data: List[Dict]) -> Dict:
-        """Enhanced insert shot chart data with better error handling"""
+        """" insert shot chart data with better error handling"""
         try:
             # Filter out any None values or invalid data
             valid_shots = []
@@ -508,6 +516,9 @@ class SupabaseClient:
             return {"success": False, "error": str(e)}
 
     # ======== User roster methods ========
+    # Enhanced roster loading with player stats
+    # Safe handling of missing data because some players might be deleted
+    # Added team name for easier display
     def get_user_rosters(self, user_id: str) -> List[Dict]:
         """Get all rosters for a user with caching"""
         cache_key = f"user_rosters_{user_id}"
@@ -577,7 +588,7 @@ class SupabaseClient:
             return {"success": False, "error": str(e)}
 
     def get_roster_players(self, roster_id: int) -> List[Dict]:
-        """Enhanced get all players in a roster with their stats and caching"""
+        """" get all players in a roster with their stats and caching"""
         cache_key = f"roster_players_{roster_id}"
         
         def fetch_roster_players():
@@ -749,6 +760,9 @@ class SupabaseClient:
             return {"success": False, "error": str(e)}
 
     # ======== Favorites methods ========
+    # Favorites system with actual player/team data enrichment
+    # Had to join tables to get names and team info
+    # TODO: Optimize this query, it's getting slow with more users
     def get_user_favorites(self, user_id: str) -> List[Dict]:
         """Get user's favorite players and teams with caching and actual data"""
         cache_key = f"user_favorites_{user_id}"
@@ -1098,7 +1112,10 @@ class SupabaseClient:
                 return {"wins": 0, "losses": 0, "win_percentage": 0.0}
         
         return self._cached_query(cache_key, fetch_record, cache_minutes=30)
-
+        
+        
+    # Added pagination because loading all players crashes the browser
+    # Search functionality needed custom SQL queries
     # ======== Players methods ========
     def get_players_paginated(self, page: int = 1, per_page: int = 20, search: str = "", team_id: int = None, position: str = "") -> Dict:
         """Get paginated list of players with caching for popular queries"""
@@ -1281,7 +1298,7 @@ class SupabaseClient:
             return {"success": False, "error": str(e)}
 
     def get_player_season_stats(self, player_id: int, season: str = "2024-25") -> Optional[Dict]:
-        """Enhanced get player season averages with caching and fallback options"""
+        """" get player season averages with caching and fallback options"""
         cache_key = f"player_season_stats_{player_id}_{season}"
         
         def fetch_stats():

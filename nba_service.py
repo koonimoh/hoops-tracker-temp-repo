@@ -1,4 +1,6 @@
-# nba_service.py - Optimized NBA Service with Intelligent Caching
+# NBA API integration with  caching
+# This was the hardest part - NBA API is rate limited and can be unreliable
+# Built with retries and fallbacks because the API times out frequently
 import time
 import logging
 from typing import Dict, List, Optional, Set
@@ -14,6 +16,9 @@ from nba_api.stats.static import teams, players
 from nba_api.live.nba.endpoints import scoreboard
 import threading
 
+# Configuration and team mappings
+# Had to hardcode team conferences because NBA API doesn't always include it
+# TODO: Update this when teams change conferences (rarely happens)
 class Config:
     """Configuration class with caching and rate limiting"""
     
@@ -83,7 +88,9 @@ class Config:
         
         return seasons
 
-
+# Custom caching to reduce API calls
+# NBA API has strict rate limits so this is essential
+# Cache expires automatically to keep data fresh
 class IntelligentCache:
     """Intelligent caching system to reduce API calls"""
     
@@ -152,7 +159,7 @@ class NBAService:
         self.headers = Config.NBA_API_HEADERS
         self.cache = IntelligentCache()
         
-        # Setup enhanced logging
+        # Setup logging
         if not self.logger.handlers:
             handler = logging.StreamHandler()
             formatter = logging.Formatter(
@@ -245,7 +252,11 @@ class NBAService:
         
         # If all retries failed, raise the last exception
         raise
-        
+    
+
+    # Team sync is pretty straightforward
+    # Added batch operations to make it faster
+    # Conference normalization was needed for consistency    
     def sync_teams(self) -> Dict:
         """Optimized team sync with batch operations"""
         if not self.supabase:
@@ -371,7 +382,11 @@ class NBAService:
             except AttributeError:
                 pass
             return {"success": False, "error": str(e)}
-    
+            
+            
+    # Player sync takes the longest time
+    # Processing in small batches to avoid overwhelming the API
+    # Some players don't have complete data, handled gracefully
     def sync_players(self, team_id: int = None) -> Dict:
         """Optimized players sync with batch operations"""
         if not self.supabase:
@@ -578,9 +593,12 @@ class NBAService:
     #########
     #########    
     ########## Continuation of NBAService class - Player Stats and Games methods
-    
+    # This method tries multiple seasons to find player stats
+    # Current season might not have data yet early in the year
+    # Added per-game averages calculation here
+        
     def sync_player_stats_enhanced(self, player_id: int = None, season: str = None, max_players: int = None) -> Dict:
-        """Optimized player stats sync with intelligent batching"""
+        """Optimized player stats sync with  batching"""
         if not self.supabase:
             return {"success": False, "error": "Supabase client not initialized"}
         
@@ -745,7 +763,7 @@ class NBAService:
             return {"success": False, "error": str(e)}
     
     def sync_recent_games_enhanced(self, days_back: int = 30, max_games: int = 200) -> Dict:
-        """Optimized games sync with intelligent batching"""
+        """Optimized games sync with  batching"""
         if not self.supabase:
             return {"success": False, "error": "Supabase client not initialized"}
         
@@ -912,7 +930,10 @@ class NBAService:
             self.logger.error(f"Error parsing game data: {e}")
             return None
     
-    # Replace the sync_shot_chart_data_enhanced method in your nba_service.py
+    # Shot chart data is the most complex part
+    # NBA API requires specific parameters and often times out
+    # Added extra retry logic and longer timeouts for shot charts
+    # TODO: Implement shot chart data cleanup for old seasons
     def sync_shot_chart_data_enhanced(self, player_id: int, season: str = None, max_shots: int = 1000) -> Dict:
         """Optimized shot chart sync with intelligent caching and better error handling"""
         if not self.supabase:
@@ -1146,7 +1167,7 @@ class NBAService:
     ########## 
     ########## Continuation of NBAService class - Helper methods and completion
     
-    # Update sync_all_data_enhanced() method in nba_service.py
+    
 
     def sync_all_data_enhanced(self, include_shot_charts: bool = False, max_players_for_shots: int = 10) -> Dict:
         """Optimized full data sync with optional shot charts"""

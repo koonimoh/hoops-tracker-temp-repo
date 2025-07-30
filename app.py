@@ -1,4 +1,6 @@
-# app.py - Optimized Flask Application with Enhanced Sync Management
+# Main Flask application for Hoops Tracker
+# Started simple but got pretty complex with all the caching
+# TODO: Break this into smaller modules if it gets much bigger
 import os
 import logging
 from flask import Flask, render_template, session, request, jsonify, redirect, url_for, flash, g
@@ -37,6 +39,9 @@ sync_status = {
 sync_lock = threading.Lock()
 logger = logging.getLogger(__name__)
 
+
+# Using app factory pattern to make testing easier
+# Added sync_status to app context for background jobs
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -44,7 +49,10 @@ def create_app():
     # IMPORTANT: Store sync_status in app for access from NBAService
     app.sync_status = sync_status
     
-    # Enhanced helper functions for Jinja templates
+    # These helper functions generate NBA image URLs
+    # Had issues with broken images so added fallbacks everywhere
+    # NBA sometimes changes their URL patterns
+    # helper functions for Jinja templates
     def get_player_headshot_url(nba_player_id, size='260x190'):
         """Generate NBA player headshot URL with fallbacks"""
         if not nba_player_id:
@@ -73,7 +81,7 @@ def create_app():
 
     # Register enhanced custom Jinja filters
     def format_date(value, fmt='%b %d, %Y'):
-        """Enhanced date formatting with error handling"""
+        """date formatting with error handling"""
         try:
             if isinstance(value, str):
                 value = datetime.fromisoformat(value.replace('Z', '+00:00'))
@@ -107,7 +115,7 @@ def create_app():
         'percentage': format_percentage
     })
     
-    # Enhanced session configuration
+    #  session configuration
     app.config['SESSION_TYPE'] = 'filesystem'
     app.config['SESSION_FILE_DIR'] = tempfile.mkdtemp()
     app.config['SESSION_PERMANENT'] = False
@@ -119,7 +127,7 @@ def create_app():
     # Enable CORS
     CORS(app, supports_credentials=True)
     
-    # Enhanced logging configuration
+    #  logging configuration
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
@@ -181,7 +189,7 @@ def create_app():
         return get_cached_data(cache_key, fetch_function, cache_duration_minutes)
     
     def clear_cache(cache_pattern=None):
-        """Enhanced cache clearing with pattern matching"""
+        """cache clearing with pattern matching"""
         try:
             if cache_pattern:
                 keys_to_remove = [k for k in session.keys() if k.startswith(f'cache_{cache_pattern}')]
@@ -236,10 +244,10 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(api_bp, url_prefix='/api')
 
-    # Enhanced before request handlers
+    # before request handlers
     @app.before_request
     def before_request():
-        """Enhanced request preprocessing with better error handling"""
+        """request preprocessing with better error handling"""
         try:
             g.current_user = get_current_user()
             
@@ -271,10 +279,10 @@ def create_app():
             g.current_user = None
             g.all_teams = []
 
-    # Enhanced route handlers
+    # route handlers
     @app.route('/')
     def index():
-        """Enhanced home page with better data loading"""
+        """home page with better data loading"""
         try:
             featured_data = {}
             
@@ -303,12 +311,14 @@ def create_app():
             logger.error(f"Index page error: {str(e)}")
             return render_template('index.html', featured_data={})
     
-    # Replace the existing dashboard route in app.py with this updated version
-
+    
+    # Dashboard needs fresh favorites data to show updates immediately
+    # Cache clearing here is important for user experience
+    # BUG: Sometimes favorites count doesn't update, investigating...
     @app.route('/dashboard')
     @require_auth
     def dashboard():
-        """Enhanced dashboard with fresh favorites data"""
+        """dashboard with fresh favorites data"""
         try:
             user = g.current_user
             
@@ -347,7 +357,7 @@ def create_app():
                 
     @app.route('/players')
     def players():
-        """Enhanced players page with better filtering and error handling"""
+        """players page with better filtering and error handling"""
         try:
             page = request.args.get('page', 1, type=int)
             per_page = min(request.args.get('per_page', 20, type=int), 50)
@@ -399,7 +409,7 @@ def create_app():
     
     @app.route('/player/<int:player_id>')
     def player_detail(player_id):
-        """Enhanced player detail page with comprehensive data"""
+        """player detail page with comprehensive data"""
         try:
             # Cache player data
             def fetch_player():
@@ -458,11 +468,11 @@ def create_app():
             flash('Error loading player data', 'error')
             return redirect(url_for('players'))
             
-    # Continuation of app.py - Teams, Admin, and Sync Management
+    
     
     @app.route('/teams')
     def teams():
-        """Enhanced teams page with better conference handling"""
+        """teams page with better conference handling"""
         try:
             teams = g.all_teams or []
             
@@ -494,7 +504,7 @@ def create_app():
     
     @app.route('/team/<int:team_id>')
     def team_detail(team_id):
-        """Enhanced team detail page"""
+        """team detail page"""
         try:
             # Cache team data
             team = get_cached_data(
@@ -552,7 +562,7 @@ def create_app():
     @app.route('/rosters', methods=['GET', 'POST'])
     @require_auth
     def rosters():
-        """Enhanced rosters page"""
+        """rosters page"""
         user = g.current_user
         
         if request.method == 'POST':
@@ -563,7 +573,7 @@ def create_app():
                 description = data.get('description', '').strip()
                 is_public = data.get('is_public', False)
                 
-                # Enhanced validation
+                # validation
                 if not name:
                     return jsonify({'success': False, 'error': 'Roster name is required'}), 400
                 
@@ -636,7 +646,7 @@ def create_app():
     @app.route('/roster/<int:roster_id>')
     @require_auth
     def roster_detail(roster_id):
-        """Enhanced roster detail page"""
+        """roster detail page"""
         try:
             user = g.current_user
             
@@ -673,7 +683,7 @@ def create_app():
     @app.route('/standings')
     @require_auth
     def standings():
-        """Enhanced standings page with dynamic calculation"""
+        """standings page with dynamic calculation"""
         try:
             teams = g.all_teams
             
@@ -726,8 +736,11 @@ def create_app():
                                      east_teams=[],  
                                      west_teams=[],
                                      team_records={})
-        
-    # ——— Enhanced Admin Dashboard ———
+                                     
+    # This endpoint handles both regular and parallel sync
+    # Added stop functionality because syncs can take forever
+    # IMPORTANT: Clear caches after sync or data won't update on frontend    
+    # ——— Admin Dashboard ———
     @app.route('/admin')
     @require_auth
     def admin():
@@ -790,7 +803,7 @@ def create_app():
             flash('Error loading admin page', 'error')
             return redirect(url_for('dashboard'))
 
-    # Update the admin sync route in app.py
+    
 
     @app.route('/admin/sync-data', methods=['POST'])
     @require_auth
@@ -1052,17 +1065,19 @@ def create_app():
         
         return jsonify(status)
 
-    # Enhanced error handlers
+    # error handlers
+    # Custom error pages look much better than Flask defaults
+    # Added helpful links for 404s
     @app.errorhandler(404)
     def not_found(error):
-        """Enhanced 404 handler"""
+        """404 handler"""
         return render_template('error.html',  
                              error_code=404,  
                              error_message="The page you're looking for doesn't exist."), 404
 
     @app.errorhandler(500)
     def internal_error(error):
-        """Enhanced 500 handler"""
+        """500 handler"""
         logger.error(f"Internal server error: {str(error)}")
         return render_template('error.html',  
                              error_code=500,  
@@ -1092,7 +1107,7 @@ def create_app():
 if __name__ == '__main__':
     app = create_app()
     
-    # Enhanced development server configuration
+    # development server configuration
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.environ.get('PORT', 3000))
     host = os.environ.get('HOST', '0.0.0.0')

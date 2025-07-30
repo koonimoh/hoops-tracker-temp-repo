@@ -1,12 +1,16 @@
-# api.py - Complete Enhanced API with all endpoints
 from flask import Blueprint, request, jsonify, current_app
 from auth import require_auth, get_current_user, require_role
 import logging
 
+# TODO: Add rate limiting to prevent API abuse
+# FIXME: Some endpoints might need better error handling
+# Main API routes for the Hoops Tracker application
+# This handles all the REST endpoints for frontend communication
 # Create API blueprint
 api_bp = Blueprint('api', __name__)
 
-# Enhanced Players API
+# Added pagination here because loading all players at once was too slow
+# per_page is limited to 100 to prevent memory issues
 @api_bp.route('/players')
 def get_players():
     """Get paginated list of players with enhanced filtering"""
@@ -37,7 +41,9 @@ def get_players():
             'error': str(e)
         }), 500
 
-# PLAYER ENDPOINT - Replaced the existing get_player function
+# Enhanced this endpoint to include season stats and recent games
+# Had to add better error handling because some players don't have stats yet
+# TODO: Cache this data since player details are accessed frequently
 @api_bp.route('/players/<int:player_id>')
 def get_player_enhanced(player_id):
     """Get player details with enhanced stats and better error handling"""
@@ -50,7 +56,7 @@ def get_player_enhanced(player_id):
                 'error': 'Player not found'
             }), 404
         
-        # Get additional data with better error handling
+        # Get additional data 
         season_stats = None
         recent_games = []
         
@@ -79,7 +85,7 @@ def get_player_enhanced(player_id):
         # Get career stats if available
         career_stats = None
         try:
-            # This would be implemented if career stats are needed
+            # This would be implemented if career stats exist
             career_stats = {}
         except Exception as career_error:
             logging.warning(f"Could not fetch career stats for player {player_id}: {career_error}")
@@ -101,10 +107,13 @@ def get_player_enhanced(player_id):
             'error': str(e)
         }), 500
 
-# MISSING ENDPOINT 
+
+# This was tricky - had to handle cases where players have no shot data
+# Added shot statistics calculation here instead of in frontend
+# BUG: Sometimes shot_made field is null, need to handle that
 @api_bp.route('/players/<int:player_id>/shot-chart')
 def get_player_shot_chart_endpoint(player_id):
-    """Get player shot chart data with filtering options - FIXED ENDPOINT"""
+    """Get player shot chart data with filtering options """
     try:
         game_id = request.args.get('game_id', type=int)
         season = request.args.get('season', '2024-25')
@@ -160,7 +169,7 @@ def get_teams():
         
         teams = current_app.supabase.get_all_teams()
         
-        # Filter by conference if specified
+        # Filter by conference 
         if conference:
             conference_filter = conference.lower()
             teams = [
@@ -168,7 +177,7 @@ def get_teams():
                 if team.get('conference', '').lower().startswith(conference_filter)
             ]
         
-        # Filter by division if specified
+        # Filter by division 
         if division:
             teams = [
                 team for team in teams 
@@ -265,7 +274,7 @@ def calculate_team_l10_and_streak(team_id, recent_games):
         
 @api_bp.route('/teams/<int:team_id>')
 def get_team(team_id):
-    """Get team details with enhanced data"""
+    """Get team details """
     try:
         team = current_app.supabase.get_team_by_id(team_id)
         
@@ -319,7 +328,7 @@ def get_team_roster(team_id):
             'error': str(e)
         }), 500
 
-# Enhanced Games API
+
 @api_bp.route('/games')
 def get_games():
     """Get recent games with enhanced filtering"""
@@ -378,7 +387,7 @@ def get_game(game_id):
             'error': str(e)
         }), 500
 
-# Enhanced Search API
+
 @api_bp.route('/search')
 def search():
     """Enhanced global search endpoint"""
@@ -396,7 +405,7 @@ def search():
         results = {'players': [], 'teams': []}
         
         if search_type in ['all', 'players']:
-            # Search players with enhanced filtering
+            # Search players with filtering
             player_results = current_app.supabase.get_players_paginated(
                 page=1,
                 per_page=limit,
@@ -428,7 +437,7 @@ def search():
             'error': str(e)
         }), 500
 
-# Enhanced User Rosters API
+
 @api_bp.route('/rosters', methods=['GET', 'POST'])
 @require_auth
 def manage_rosters():
@@ -640,6 +649,9 @@ def manage_roster_players(roster_id):
         }), 500
 
 
+# Only admin users can access these endpoints
+# Added extra security checks because this syncs live NBA data
+# TODO: Add logging for all admin actions
 # Enhanced Admin API endpoints
 @api_bp.route('/admin/sync', methods=['POST'])
 @require_role('admin')
@@ -922,13 +934,14 @@ def delete_roster(roster_id):
         logging.error(f"Delete roster error: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500      
 
-# Add these updated functions to your api.py file
-# Replace the existing favorites endpoint and add the cache clearing endpoint
+# Had to clear cache immediately when favorites are updated
+# Otherwise dashboard doesn't show changes right away
+# NOTE: This could be optimized but works for now
 
 @api_bp.route('/favorites', methods=['GET', 'POST', 'DELETE'])
 @require_auth
 def manage_favorites():
-    """Enhanced manage user favorites with proper cache clearing and error handling"""
+    """ manage user favorites with proper cache clearing and error handling"""
     try:
         user = get_current_user()
         logging.info(f"Favorites request - Method: {request.method}, User: {user['id']}")
@@ -1027,7 +1040,7 @@ def _clear_user_caches(user_id: str):
     except Exception as e:
         logging.error(f"Error clearing user caches: {str(e)}")
 
-# Add this new endpoint to clear dashboard cache
+# this new endpoint  clears dashboard cache
 @api_bp.route('/clear-dashboard-cache', methods=['POST'])
 @require_auth
 def clear_dashboard_cache():
@@ -1069,7 +1082,7 @@ def debug_teams():
             'error': str(e)
         }), 500
         
-# DEBUGGING ENDPOINT -  debug data structure issues
+# DEBUGGING   debug data structure issues
 @api_bp.route('/debug/player/<int:player_id>')
 def debug_player_data(player_id):
     """Debug endpoint to check player data structure"""

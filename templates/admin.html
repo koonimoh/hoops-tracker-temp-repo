@@ -1,4 +1,5 @@
-<!-- templates/admin.html - Enhanced with Shot Chart Support -->
+<!-- Admin dashboard for data management and system monitoring -->
+<!-- Added shot chart sync controls for advanced data management -->
 {% extends "base.html" %}
 
 {% block title %}Admin Dashboard - Hoops Tracker{% endblock %}
@@ -304,6 +305,9 @@
 </style>
 {% endblock %}
 
+<!-- Sync progress tracking with real-time updates -->
+<!-- Stop sync functionality for long-running operations -->
+<!-- Enhanced error handling and user feedback -->
 {% block extra_scripts %}
 <script>
 let currentSyncType = null;

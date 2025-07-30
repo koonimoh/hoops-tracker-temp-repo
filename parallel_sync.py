@@ -1,4 +1,6 @@
-# parallel_sync.py - Optimized Parallel Sync Service
+# Parallel processing for faster NBA data synchronization
+# Built this because regular sync was taking way too long
+# Uses ThreadPoolExecutor to sync multiple items at once
 import threading
 import concurrent.futures
 import time
@@ -7,6 +9,8 @@ from typing import Dict, List, Optional, Callable
 from datetime import datetime, timezone
 from queue import Queue, Empty
 
+# Reduced max_workers to 3 to avoid overwhelming NBA API
+# More workers = more rate limit issues
 class ParallelSyncService:
     """Optimized parallel processing service for NBA data synchronization"""
     
@@ -50,12 +54,18 @@ class ParallelSyncService:
                 time.sleep(sleep_time)
             
             self.last_api_call = time.time()
-
+            
+            
+    # Team sync in parallel is pretty safe since there are only 30 teams
+    # Added conservative rate limiting between batches
     def sync_teams_parallel(self) -> str:
         """Sync teams with optimized parallel processing"""
         job_id = self._create_job('teams_parallel', self._sync_teams_worker)
         return job_id
 
+    # Player sync needs more careful handling
+    # Too many parallel requests will get rate limited
+    # Processing in very small batches with longer delays
     def sync_players_parallel(self, batch_size: int = 3, max_teams: int = 5) -> str:
         """Sync players in smaller parallel batches"""
         job_id = self._create_job('players_parallel', self._sync_players_worker, {'batch_size': batch_size, 'max_teams': max_teams})
@@ -68,9 +78,11 @@ class ParallelSyncService:
             'batch_size': batch_size
         })
         return job_id
-
+    # Shot charts are the most resource intensive
+    # Running these sequentially even in "parallel" mode
+    # NBA API can't handle multiple shot chart requests at once
     def sync_shot_charts_parallel(self, player_ids: List[int], season: str = "2024-25") -> str:
-        """Sync shot chart data with conservative parallel processing"""
+        """Sync shot chart data with  parallel processing"""
         job_id = self._create_job('shot_charts_parallel', self._sync_shot_charts_worker, {
             'player_ids': player_ids,
             'season': season

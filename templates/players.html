@@ -1,4 +1,5 @@
-<!-- templates/players.html -->
+<!-- Player browsing with search and filters -->
+<!-- Fixed image sizing issues that were making cards look inconsistent -->
 {% extends "base.html" %}
 
 {% block title %}Players - Hoops Tracker{% endblock %}
@@ -192,6 +193,10 @@
 </style>
 {% endblock %}
 
+
+<!-- Enhanced search with debouncing to reduce API calls -->
+<!-- Add to roster modal with team roster management -->
+<!-- Consistent placeholder images for players without photos -->
 {% block extra_scripts %}
 <script>
 let currentPlayerId = null;

@@ -1,4 +1,6 @@
-<!-- templates/standings.html - Enhanced with Real Data Calculation -->
+<!-- NBA standings with playoff implications -->
+<!-- Dynamic loading and conference switching -->
+<!-- Most complex data calculations for games behind and win percentage -->
 {% extends "base.html" %}
 
 {% block title %}NBA Standings - Hoops Tracker{% endblock %}
@@ -327,6 +329,10 @@
 </style>
 {% endblock %}
 
+
+<!-- Real-time standings calculation from game data -->
+<!-- Combined conference view was requested feature -->
+<!-- Auto-refresh every 5 minutes to keep standings current -->
 {% block extra_scripts %}
 <script>
 let standingsData = { eastern: [], western: [] };

@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
+<!-- Custom CSS for NBA team colors and responsive design -->
+<!-- Bootstrap + custom styling for clean, mobile-friendly interface -->
+<!-- Added Chart.js for shot chart visualization -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -314,13 +318,16 @@
         });
     </script>
     
-    <!-- Enhanced favorites functionality -->
+    <!--  favorites functionality -->
+	<!-- Global utilities and favorites functionality -->
+	<!-- Enhanced favorites system with immediate UI updates -->
+	<!-- Toast notifications for better user feedback -->
     <script>
-    // Enhanced favorites functionality that works with your existing toast system
+    // favorites functionality that works with your existing toast system
     
     // Extend the existing HoopsTracker object
     HoopsTracker.favorites = {
-        // Enhanced addToFavorites function
+        // addToFavorites function
         add: async function(type, id, event) {
             try {
                 if (event) {
@@ -391,7 +398,7 @@
             }
         },
 
-        // Enhanced removeFromFavorites function
+        // removeFromFavorites function
         remove: async function(type, id, event, button) {
             try {
                 // Prevent event bubbling

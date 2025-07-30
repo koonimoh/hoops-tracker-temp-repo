@@ -1,4 +1,6 @@
-<!-- templates/teams.html - Fixed Conference Filtering and Image Sizing -->
+<!--- Fixed Conference Filtering and Image Sizing -->
+<!-- NBA teams organized by conference -->
+<!-- Fixed conference filtering that wasn't working properly -->
 {% extends "base.html" %}
 
 {% block title %}NBA Teams - Hoops Tracker{% endblock %}
@@ -203,6 +205,9 @@
 </style>
 {% endblock %}
 
+
+<!-- Conference filter with team counts -->
+<!-- Had to handle teams with missing conference data -->
 {% block extra_scripts %}
 <script>
 // Fixed team filtering functionality
